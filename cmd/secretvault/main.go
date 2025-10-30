@@ -10,89 +10,137 @@ import (
 	"text/tabwriter"
 
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"golang.org/x/term"
 )
 
-const usage = `Secret Vault CLI - Secure token and secret storage
+var (
+	vaultPath string
+	password  string
+)
 
-Usage:
-  secretvault <command> [options]
+// rootCmd represents the base command
+var rootCmd = &cobra.Command{
+	Use:   "secretvault",
+	Short: "Secure token and secret storage",
+	Long: `Secret Vault CLI - A command-line application for securely storing 
+and retrieving API tokens and credentials with encryption.`,
+}
 
-Commands:
-  init              Initialize a new vault
-  add <name>        Add or update a secret
-  get <name>        Retrieve a secret value
-  list              List all secret names
-  remove <name>     Remove a secret
-  help              Show this help message
+// initCmd represents the init command
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize a new vault",
+	Long:  `Create a new encrypted vault with a master password.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleInit()
+	},
+}
 
-Examples:
-  secretvault init
-  secretvault add github-token
-  secretvault get github-token
-  secretvault list
-  secretvault remove github-token
+// addCmd represents the add command
+var addCmd = &cobra.Command{
+	Use:   "add <name>",
+	Short: "Add or update a secret",
+	Long:  `Add a new secret or update an existing one in the vault.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		handleAdd(args[0])
+	},
+}
 
-Environment Variables:
-  VAULT_PASSWORD    Master password (if not set, will prompt)
-  VAULT_PATH        Path to vault file (default: ~/.secret-vault/vault.enc)
-`
+// getCmd represents the get command
+var getCmd = &cobra.Command{
+	Use:   "get <name>",
+	Short: "Retrieve a secret value",
+	Long:  `Retrieve and print a secret value to stdout (suitable for piping).`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		handleGet(args[0])
+	},
+}
+
+// listCmd represents the list command
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all secret names",
+	Long:  `Display all secrets in the vault with metadata in a formatted table.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleList()
+	},
+}
+
+// removeCmd represents the remove command
+var removeCmd = &cobra.Command{
+	Use:   "remove <name>",
+	Short: "Remove a secret",
+	Long:  `Delete a secret from the vault.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		handleRemove(args[0])
+	},
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	// Global flags
+	rootCmd.PersistentFlags().StringVar(&vaultPath, "vault-path", "", "path to vault file (default: ~/.secret-vault/vault.enc)")
+	rootCmd.PersistentFlags().StringVar(&password, "password", "", "master password (if not set, will prompt)")
+
+	// Bind flags to viper
+	viper.BindPFlag("vault-path", rootCmd.PersistentFlags().Lookup("vault-path"))
+	viper.BindPFlag("password", rootCmd.PersistentFlags().Lookup("password"))
+
+	// Add commands
+	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(removeCmd)
+}
+
+func initConfig() {
+	// Environment variables
+	viper.SetEnvPrefix("vault")
+	viper.AutomaticEnv()
+
+	// Set defaults
+	viper.SetDefault("vault-path", "")
+	viper.SetDefault("password", "")
+}
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Print(usage)
-		os.Exit(1)
-	}
-
-	command := os.Args[1]
-
-	switch command {
-	case "init":
-		handleInit()
-	case "add":
-		if len(os.Args) < 3 {
-			fmt.Println("Error: secret name required")
-			fmt.Println("Usage: secretvault add <name>")
-			os.Exit(1)
-		}
-		handleAdd(os.Args[2])
-	case "get":
-		if len(os.Args) < 3 {
-			fmt.Println("Error: secret name required")
-			fmt.Println("Usage: secretvault get <name>")
-			os.Exit(1)
-		}
-		handleGet(os.Args[2])
-	case "list":
-		handleList()
-	case "remove":
-		if len(os.Args) < 3 {
-			fmt.Println("Error: secret name required")
-			fmt.Println("Usage: secretvault remove <name>")
-			os.Exit(1)
-		}
-		handleRemove(os.Args[2])
-	case "help", "-h", "--help":
-		fmt.Print(usage)
-	default:
-		fmt.Printf("Error: unknown command '%s'\n\n", command)
-		fmt.Print(usage)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func getVaultPath() (string, error) {
+	// Check flag/config first
+	if path := viper.GetString("vault-path"); path != "" {
+		return path, nil
+	}
+	// Check environment variable
 	if path := os.Getenv("VAULT_PATH"); path != "" {
 		return path, nil
 	}
+	// Use default
 	return vault.GetDefaultVaultPath()
 }
 
 func getPassword(prompt string) (string, error) {
-	if password := os.Getenv("VAULT_PASSWORD"); password != "" {
-		return password, nil
+	// Check flag/config first
+	if pwd := viper.GetString("password"); pwd != "" {
+		return pwd, nil
+	}
+	// Check environment variable
+	if pwd := os.Getenv("VAULT_PASSWORD"); pwd != "" {
+		return pwd, nil
 	}
 
+	// Prompt user
 	fmt.Print(prompt)
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	fmt.Println()

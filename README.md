@@ -6,10 +6,12 @@ A secure command-line application for storing and managing API tokens, secrets, 
 
 - 🔒 **AES-256-GCM Encryption**: Military-grade encryption for your secrets
 - 🔑 **Password-Based Protection**: Master password secures all stored secrets
-- 📦 **Simple CLI Interface**: Easy-to-use commands for managing secrets
+- 📦 **Simple CLI Interface**: Built with Cobra for robust command parsing
 - 💾 **Portable Vault**: Encrypted vault file can be synced across machines
 - 🛡️ **Secure Storage**: Vault file has restrictive permissions (600)
 - ⚡ **Fast Access**: Quick retrieval of tokens when you need them
+- 🔧 **Flexible Configuration**: Support for flags, environment variables, and config files via Viper
+- 🚀 **Shell Completion**: Auto-completion support for bash, zsh, fish, and PowerShell
 
 ## Installation
 
@@ -109,16 +111,58 @@ pypi-token      PyPI upload token       2025-01-15  2025-01-15
 
 ## Configuration
 
+The CLI supports multiple configuration methods (in order of precedence):
+
+1. **Command-line flags** (highest priority)
+2. **Environment variables**
+3. **Default values** (lowest priority)
+
+### Command-line Flags
+
+All commands support global flags:
+
+```bash
+secretvault [command] --vault-path /path/to/vault.enc --password mypassword
+```
+
+Available global flags:
+- `--vault-path`: Custom location for vault file (default: `~/.secret-vault/vault.enc`)
+- `--password`: Master password (if set, skips password prompt - use with caution)
+
 ### Environment Variables
 
-- `VAULT_PATH`: Custom location for vault file (default: `~/.secret-vault/vault.enc`)
+- `VAULT_PATH` or `VAULT_VAULT_PATH`: Custom location for vault file
 - `VAULT_PASSWORD`: Master password (if set, skips password prompt - use with caution)
 
 ### Custom Vault Location
 
+Using environment variables:
 ```bash
 export VAULT_PATH=/path/to/my/vault.enc
 secretvault init
+```
+
+Using flags:
+```bash
+secretvault init --vault-path /path/to/my/vault.enc
+```
+
+### Shell Completion
+
+Generate shell completion scripts for your shell:
+
+```bash
+# Bash
+secretvault completion bash > /etc/bash_completion.d/secretvault
+
+# Zsh
+secretvault completion zsh > "${fpath[1]}/_secretvault"
+
+# Fish
+secretvault completion fish > ~/.config/fish/completions/secretvault.fish
+
+# PowerShell
+secretvault completion powershell > secretvault.ps1
 ```
 
 ### Syncing Across Machines
@@ -187,7 +231,7 @@ secret-vault-cli/
 
 1. **Vault Package**: Manages secret storage and retrieval
 2. **Crypto Package**: Handles AES-256-GCM encryption/decryption
-3. **CLI**: User interface for vault operations
+3. **CLI**: Built with [Cobra](https://github.com/spf13/cobra) for robust command structure and [Viper](https://github.com/spf13/viper) for flexible configuration management
 
 ## Development
 
