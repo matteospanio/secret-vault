@@ -12,6 +12,7 @@ A secure command-line application for storing and managing API tokens, secrets, 
 - ⚡ **Fast Access**: Quick retrieval of tokens when you need them
 - 🔧 **Flexible Configuration**: Support for flags, environment variables, and config files via Viper
 - 🚀 **Shell Completion**: Auto-completion support for bash, zsh, fish, and PowerShell
+- 🔗 **Git Integration**: Seamless Git workflow integration via hooks with domain-based token suggestions
 
 ## Installation
 
@@ -108,6 +109,65 @@ github-token    GitHub PAT for CLI      2025-01-15  2025-01-15
 npm-token       NPM publish token       2025-01-15  2025-01-15
 pypi-token      PyPI upload token       2025-01-15  2025-01-15
 ```
+
+## Git Workflow Integration
+
+Secret Vault CLI integrates with Git workflows through Git hooks, providing notifications and suggestions when you interact with remote repositories.
+
+### Installing Git Hooks
+
+To enable Git integration in a repository:
+
+```bash
+cd /path/to/your/git/repo
+secretvault git install-hooks
+```
+
+This installs a `pre-push` hook that:
+- Detects when you're pushing to a remote repository
+- Identifies the remote domain (e.g., github.com, gitlab.com, bitbucket.org)
+- Suggests relevant tokens from your vault based on the domain
+- Provides helpful reminders about using Secret Vault for authentication
+
+### Example Hook Output
+
+When you push to a remote, you'll see:
+
+```bash
+$ git push origin main
+🔐 Secret Vault CLI: Git hook active
+   Remote: origin (https://github.com/user/repo.git)
+   Domain detected: github.com
+   Tip: Use 'secretvault get <token-name>' to retrieve tokens
+   Or add tokens with 'secretvault add github.com-token'
+```
+
+### Uninstalling Hooks
+
+To remove Git integration:
+
+```bash
+secretvault git uninstall-hooks
+```
+
+This removes the hooks and restores any previously existing hooks that were backed up.
+
+### Best Practices for Git Integration
+
+1. **Organize tokens by domain**: Name your tokens with the domain for easy identification:
+   ```bash
+   secretvault add github.com-token
+   secretvault add gitlab.com-token
+   secretvault add bitbucket.org-token
+   ```
+
+2. **Use tokens in Git operations**: Retrieve and use tokens for authentication:
+   ```bash
+   TOKEN=$(secretvault get github.com-token)
+   git clone https://$TOKEN@github.com/user/repo.git
+   ```
+
+3. **Per-repository installation**: Install hooks on a per-repository basis to maintain flexibility.
 
 ## Configuration
 
@@ -262,12 +322,12 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 - [x] Cross-platform support (Linux/macOS/Windows)
 - [x] Comprehensive tests
 
-### Phase 2 - Enhanced Features (Future)
+### Phase 2 - Enhanced Features
 
-- [ ] Token suggestion mechanism based on context
-- [ ] Git workflow integration (git hooks)
-- [ ] Auto-fill capabilities
-- [ ] Shell completions (bash, zsh, fish)
+- [x] Git workflow integration (git hooks)
+- [x] Token suggestion mechanism based on context (via hooks)
+- [ ] Shell completions (bash, zsh, fish) *(partial - via Cobra)*
+- [ ] Auto-fill capabilities (advanced)
 - [ ] Import/export functionality
 - [ ] Secret rotation reminders
 
