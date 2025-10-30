@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build binaries
+        run: |
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build \
+            -o secretvault-linux-amd64 ./cmd/secretvault
+
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build \
+            -o secretvault-linux-arm64 ./cmd/secretvault
+
+          # macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build \
+            -o secretvault-darwin-amd64 ./cmd/secretvault
+
+          # macOS ARM64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build \
+            -o secretvault-darwin-arm64 ./cmd/secretvault
+
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build \
+            -o secretvault-windows-amd64.exe ./cmd/secretvault
+
+          # Windows ARM64
+          GOOS=windows GOARCH=arm64 go build \
+            -o secretvault-windows-arm64.exe ./cmd/secretvault
+
+      - name: Create checksums
+        run: |
+          sha256sum secretvault-* > checksums.txt
+          cat checksums.txt
+
+      - name: Extract release notes
+        id: extract-release-notes
+        run: |
+          # Get the tag name
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          # Try to extract release notes from CHANGELOG.md or default
+          if [ -f CHANGELOG.md ]; then
+            # Extract the section for this version (basic implementation)
+            echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+            echo "Release $TAG_NAME" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            repo="${{ github.repository }}"
+            echo "See [CHANGELOG.md](https://github.com/$repo/blob/$TAG_NAME/CHANGELOG.md) for details." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+            echo "Release $TAG_NAME" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "## Installation" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "Download the binary for your platform and add to PATH." >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### Verifying the binaries" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "Verify integrity using checksums.txt:" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "\`\`\`bash" >> $GITHUB_OUTPUT
+            echo "sha256sum -c checksums.txt" >> $GITHUB_OUTPUT
+            echo "\`\`\`" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.extract-release-notes.outputs.release_notes }}
+          files: |
+            secretvault-linux-amd64
+            secretvault-linux-arm64
+            secretvault-darwin-amd64
+            secretvault-darwin-arm64
+            secretvault-windows-amd64.exe
+            secretvault-windows-arm64.exe
+            checksums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
