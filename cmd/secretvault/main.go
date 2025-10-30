@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"text/tabwriter"
 
+	"github.com/matteospanio/secret-vault-cli/pkg/export"
 	"github.com/matteospanio/secret-vault-cli/pkg/git"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 	"github.com/spf13/cobra"
@@ -110,6 +111,41 @@ var gitUninstallHooksCmd = &cobra.Command{
 	},
 }
 
+// Export/Import command flags
+var (
+	exportFormat     string
+	exportOutput     string
+	exportEncrypted  bool
+	exportConfirm    bool
+	importFormat     string
+	importMerge      bool
+	importOverwrite  bool
+)
+
+// exportCmd represents the export command
+var exportCmd = &cobra.Command{
+	Use:   "export",
+	Short: "Export vault secrets to a file",
+	Long: `Export vault secrets to JSON or YAML format.
+By default, only metadata is exported (names, descriptions, timestamps).
+Use --confirm flag to include secret values in the export.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleExport()
+	},
+}
+
+// importCmd represents the import command
+var importCmd = &cobra.Command{
+	Use:   "import <file>",
+	Short: "Import secrets from a file",
+	Long: `Import secrets from a JSON or YAML file.
+The format is auto-detected from the file extension or can be specified with --format.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		handleImport(args[0])
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -128,10 +164,23 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(gitCmd)
+	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(importCmd)
 
 	// Add git subcommands
 	gitCmd.AddCommand(gitInstallHooksCmd)
 	gitCmd.AddCommand(gitUninstallHooksCmd)
+
+	// Export command flags
+	exportCmd.Flags().StringVarP(&exportFormat, "format", "f", "json", "output format (json, yaml)")
+	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "output file path (default: vault-export.<format>)")
+	exportCmd.Flags().BoolVar(&exportEncrypted, "encrypted", false, "export in encrypted form (not yet implemented)")
+	exportCmd.Flags().BoolVar(&exportConfirm, "confirm", false, "confirm export of secret values")
+
+	// Import command flags
+	importCmd.Flags().StringVarP(&importFormat, "format", "f", "", "input format (json, yaml) - auto-detected if not specified")
+	importCmd.Flags().BoolVar(&importMerge, "merge", true, "merge with existing secrets (default)")
+	importCmd.Flags().BoolVar(&importOverwrite, "overwrite", false, "overwrite existing secrets without prompting")
 }
 
 func initConfig() {
@@ -459,4 +508,204 @@ func handleGitUninstallHooks() {
 	}
 
 	fmt.Println("✓ Git hooks uninstalled successfully")
+}
+
+func handleExport() {
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	// Get formatter
+	formatter, err := export.GetFormatter(exportFormat)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Determine output file
+	outputFile := exportOutput
+	if outputFile == "" {
+		outputFile = "vault-export" + formatter.FileExtension()
+	}
+
+	// Check if including secret values
+	includeValues := exportConfirm
+	if !includeValues {
+		fmt.Println("⚠️  Exporting metadata only (names, descriptions, timestamps)")
+		fmt.Println("   Use --confirm to include secret values")
+	} else {
+		fmt.Println("⚠️  Warning: Exporting with secret values!")
+		fmt.Print("   Type 'yes' to confirm: ")
+		reader := bufio.NewReader(os.Stdin)
+		confirmation, _ := reader.ReadString('\n')
+		confirmation = strings.TrimSpace(strings.ToLower(confirmation))
+		if confirmation != "yes" {
+			fmt.Println("Export cancelled")
+			os.Exit(0)
+		}
+	}
+
+	password, err := getPassword("Enter master password: ")
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+
+	v, err := vault.LoadVault(vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Export data
+	data, err := formatter.Marshal(v, includeValues)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Write to file
+	err = os.WriteFile(outputFile, data, 0600)
+	if err != nil {
+		fmt.Printf("Error writing to file: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Vault exported to %s (%s format)\n", outputFile, formatter.Name())
+	if includeValues {
+		fmt.Println("⚠️  Warning: File contains secret values - keep it secure!")
+	}
+}
+
+func handleImport(filePath string) {
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	// Read import file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Determine format
+	format := importFormat
+	if format == "" {
+		// Auto-detect from file extension
+		if strings.HasSuffix(filePath, ".json") {
+			format = "json"
+		} else if strings.HasSuffix(filePath, ".yaml") || strings.HasSuffix(filePath, ".yml") {
+			format = "yaml"
+		} else {
+			fmt.Println("Error: cannot auto-detect format, please specify with --format")
+			os.Exit(1)
+		}
+	}
+
+	// Get formatter
+	formatter, err := export.GetFormatter(format)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Parse import data
+	importedVault, err := formatter.Unmarshal(data)
+	if err != nil {
+		fmt.Printf("Error parsing import file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate that secrets have values
+	hasEmptyValues := false
+	for _, secret := range importedVault.Secrets {
+		if secret.Value == "" {
+			hasEmptyValues = true
+			break
+		}
+	}
+
+	if hasEmptyValues {
+		fmt.Println("⚠️  Warning: Some secrets in the import file have empty values")
+		fmt.Println("   These may be metadata-only exports")
+	}
+
+	password, err := getPassword("Enter master password: ")
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+
+	v, err := vault.LoadVault(vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Merge secrets
+	conflictCount := 0
+	addedCount := 0
+	skippedCount := 0
+
+	for name, importedSecret := range importedVault.Secrets {
+		if existingSecret, exists := v.Secrets[name]; exists {
+			conflictCount++
+			
+			if !importOverwrite {
+				fmt.Printf("\n⚠️  Secret '%s' already exists\n", name)
+				fmt.Printf("   Existing: created %s, updated %s\n", 
+					existingSecret.CreatedAt.Format("2006-01-02"),
+					existingSecret.UpdatedAt.Format("2006-01-02"))
+				fmt.Printf("   Import:   created %s, updated %s\n", 
+					importedSecret.CreatedAt.Format("2006-01-02"),
+					importedSecret.UpdatedAt.Format("2006-01-02"))
+				fmt.Print("   Overwrite? [y/N]: ")
+				
+				reader := bufio.NewReader(os.Stdin)
+				response, _ := reader.ReadString('\n')
+				response = strings.TrimSpace(strings.ToLower(response))
+				
+				if response != "y" && response != "yes" {
+					fmt.Println("   Skipped")
+					skippedCount++
+					continue
+				}
+			}
+		} else {
+			addedCount++
+		}
+
+		v.Secrets[name] = importedSecret
+	}
+
+	// Save vault
+	err = vault.SaveVault(v, vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n✓ Import complete:\n")
+	fmt.Printf("   Added: %d secret(s)\n", addedCount)
+	if conflictCount > 0 {
+		fmt.Printf("   Updated: %d secret(s)\n", conflictCount-skippedCount)
+		if skippedCount > 0 {
+			fmt.Printf("   Skipped: %d secret(s)\n", skippedCount)
+		}
+	}
 }
