@@ -5,6 +5,7 @@ go 1.24.7
 require (
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
+	github.com/studio-b12/gowebdav v0.11.0
 	golang.org/x/crypto v0.43.0
 	golang.org/x/term v0.36.0
 )
