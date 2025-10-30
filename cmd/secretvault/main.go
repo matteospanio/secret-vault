@@ -118,7 +118,7 @@ func handleInit() {
 
 	password, err := getPassword("Enter master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
@@ -129,7 +129,7 @@ func handleInit() {
 
 	confirmPassword, err := getPassword("Confirm master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
@@ -162,7 +162,7 @@ func handleAdd(name string) {
 
 	password, err := getPassword("Enter master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
@@ -219,7 +219,7 @@ func handleGet(name string) {
 
 	password, err := getPassword("Enter master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
@@ -252,7 +252,7 @@ func handleList() {
 
 	password, err := getPassword("Enter master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
@@ -304,7 +304,7 @@ func handleRemove(name string) {
 
 	password, err := getPassword("Enter master password: ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Println("Error: failed to read password")
 		os.Exit(1)
 	}
 
