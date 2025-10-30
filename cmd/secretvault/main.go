@@ -113,13 +113,13 @@ var gitUninstallHooksCmd = &cobra.Command{
 
 // Export/Import command flags
 var (
-	exportFormat     string
-	exportOutput     string
-	exportEncrypted  bool
-	exportConfirm    bool
-	importFormat     string
-	importMerge      bool
-	importOverwrite  bool
+	exportFormat    string
+	exportOutput    string
+	exportEncrypted bool
+	exportConfirm   bool
+	importFormat    string
+	importMerge     bool
+	importOverwrite bool
 )
 
 // exportCmd represents the export command
@@ -665,21 +665,21 @@ func handleImport(filePath string) {
 	for name, importedSecret := range importedVault.Secrets {
 		if existingSecret, exists := v.Secrets[name]; exists {
 			conflictCount++
-			
+
 			if !importOverwrite {
 				fmt.Printf("\n⚠️  Secret '%s' already exists\n", name)
-				fmt.Printf("   Existing: created %s, updated %s\n", 
+				fmt.Printf("   Existing: created %s, updated %s\n",
 					existingSecret.CreatedAt.Format("2006-01-02"),
 					existingSecret.UpdatedAt.Format("2006-01-02"))
-				fmt.Printf("   Import:   created %s, updated %s\n", 
+				fmt.Printf("   Import:   created %s, updated %s\n",
 					importedSecret.CreatedAt.Format("2006-01-02"),
 					importedSecret.UpdatedAt.Format("2006-01-02"))
 				fmt.Print("   Overwrite? [y/N]: ")
-				
+
 				reader := bufio.NewReader(os.Stdin)
 				response, _ := reader.ReadString('\n')
 				response = strings.TrimSpace(strings.ToLower(response))
-				
+
 				if response != "y" && response != "yes" {
 					fmt.Println("   Skipped")
 					skippedCount++

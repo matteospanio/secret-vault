@@ -13,6 +13,7 @@ A secure command-line application for storing and managing API tokens, secrets, 
 - 🔧 **Flexible Configuration**: Support for flags, environment variables, and config files via Viper
 - 🚀 **Shell Completion**: Auto-completion support for bash, zsh, fish, and PowerShell
 - 🔗 **Git Integration**: Seamless Git workflow integration via hooks with domain-based token suggestions
+- 📤 **Import/Export**: Backup and migrate secrets using JSON or YAML formats with `jq`/`yq` integration
 
 ## Installation
 
@@ -168,6 +169,102 @@ This removes the hooks and restores any previously existing hooks that were back
    ```
 
 3. **Per-repository installation**: Install hooks on a per-repository basis to maintain flexibility.
+
+## Import/Export Functionality
+
+Secret Vault CLI supports exporting and importing secrets in JSON or YAML formats, enabling backups, migrations, and integration with command-line tools like `jq` and `yq`.
+
+### Exporting Secrets
+
+Export your vault to a file for backup or migration:
+
+```bash
+# Export metadata only (names, descriptions, timestamps - no secret values)
+secretvault export --format json --output backup.json
+
+# Export with secret values (requires confirmation)
+secretvault export --format json --output backup.json --confirm
+
+# Export to YAML format
+secretvault export --format yaml --output backup.yaml --confirm
+```
+
+**Security Notes:**
+- By default, only metadata is exported (names, descriptions, timestamps)
+- Use `--confirm` flag to include secret values
+- When exporting values, you'll be prompted to type "yes" for additional confirmation
+- Exported files with values should be treated as sensitive data
+
+### Importing Secrets
+
+Import secrets from a JSON or YAML file:
+
+```bash
+# Import from JSON (format auto-detected from extension)
+secretvault import backup.json
+
+# Import from YAML with explicit format
+secretvault import backup.yaml --format yaml
+
+# Import with automatic overwrite of existing secrets
+secretvault import backup.json --overwrite
+```
+
+**Import Behavior:**
+- Format is auto-detected from file extension (`.json`, `.yaml`, `.yml`)
+- Existing secrets trigger an interactive prompt asking if you want to overwrite
+- Use `--overwrite` flag to skip prompts and overwrite all conflicts automatically
+- Timestamps and descriptions from the import file are preserved
+
+### Integration with `jq` and `yq`
+
+The export format is designed to work seamlessly with command-line tools:
+
+```bash
+# Filter secrets by name using jq
+secretvault export --format json --confirm | jq '.secrets[] | select(.name | contains("github"))'
+
+# Extract only secret names
+secretvault export --format json | jq -r '.secrets[].name'
+
+# Get secrets created after a specific date
+secretvault export --format json --confirm | jq '.secrets[] | select(.created_at > "2025-01-01")'
+
+# Use yq for YAML manipulation
+secretvault export --format yaml --confirm | yq '.secrets[] | select(.name == "github-token")'
+```
+
+### Export/Import Use Cases
+
+1. **Backup and Restore:**
+   ```bash
+   # Backup
+   secretvault export --format json --output backup.json --confirm
+   
+   # Restore to a new vault
+   secretvault init
+   secretvault import backup.json
+   ```
+
+2. **Migration Between Machines:**
+   ```bash
+   # On machine 1
+   secretvault export --format json --output vault-export.json --confirm
+   
+   # Transfer file to machine 2 (using secure method)
+   
+   # On machine 2
+   secretvault init
+   secretvault import vault-export.json
+   ```
+
+3. **Selective Secret Transfer:**
+   ```bash
+   # Export and filter with jq, then import
+   secretvault export --format json --confirm > all-secrets.json
+   jq '{version: .version, secrets: [.secrets[] | select(.name | contains("prod"))]}' all-secrets.json > prod-secrets.json
+   secretvault import prod-secrets.json
+   ```
 
 ## Configuration
 
@@ -326,9 +423,9 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 - [x] Git workflow integration (git hooks)
 - [x] Token suggestion mechanism based on context (via hooks)
+- [x] Import/export functionality (JSON and YAML formats with `jq`/`yq` integration)
 - [ ] Shell completions (bash, zsh, fish) *(partial - via Cobra)*
 - [ ] Auto-fill capabilities (advanced)
-- [ ] Import/export functionality
 - [ ] Secret rotation reminders
 
 ### Phase 3 - Advanced Features (Future)

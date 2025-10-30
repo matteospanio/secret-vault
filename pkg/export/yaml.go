@@ -30,11 +30,11 @@ func (f *YAMLFormat) Marshal(v *vault.Vault, includeValues bool) ([]byte, error)
 			CreatedAt:   secret.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   secret.UpdatedAt.Format(time.RFC3339),
 		}
-		
+
 		if includeValues {
 			exportSecret.Value = secret.Value
 		}
-		
+
 		exportData.Secrets = append(exportData.Secrets, exportSecret)
 	}
 

@@ -51,7 +51,7 @@ func TestGetFormatter_YML(t *testing.T) {
 
 func TestGetFormatter_CaseInsensitive(t *testing.T) {
 	tests := []string{"JSON", "Json", "YAML", "Yaml", "YML", "Yml"}
-	
+
 	for _, format := range tests {
 		formatter, err := GetFormatter(format)
 		if err != nil {
@@ -75,15 +75,15 @@ func TestGetFormatter_UnsupportedFormat(t *testing.T) {
 
 func TestSupportedFormats(t *testing.T) {
 	formats := SupportedFormats()
-	
+
 	if len(formats) != 2 {
 		t.Errorf("Expected 2 supported formats, got %d", len(formats))
 	}
-	
+
 	// Check that json and yaml are in the list
 	hasJSON := false
 	hasYAML := false
-	
+
 	for _, format := range formats {
 		if format == "json" {
 			hasJSON = true
@@ -92,7 +92,7 @@ func TestSupportedFormats(t *testing.T) {
 			hasYAML = true
 		}
 	}
-	
+
 	if !hasJSON {
 		t.Error("Expected 'json' in supported formats")
 	}
