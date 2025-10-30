@@ -33,5 +33,5 @@ go.work.sum
 .secret-vault/
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
