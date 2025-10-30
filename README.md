@@ -345,9 +345,10 @@ secret-vault-cli/
 │   │   ├── provider.go   # SyncProvider interface
 │   │   ├── nextcloud.go  # Nextcloud/WebDAV implementation
 │   │   ├── config.go     # Configuration management
+│   │   ├── config_test.go
 │   │   ├── metadata.go   # Version tracking and checksums
-│   │   ├── manager.go    # Sync orchestration
-│   │   └── *_test.go     # Comprehensive tests
+│   │   ├── metadata_test.go
+│   │   └── manager.go    # Sync orchestration
 │   └── vault/            # Vault data structure and storage
 │       ├── vault.go
 │       ├── storage.go
