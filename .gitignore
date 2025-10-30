@@ -2,6 +2,7 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+secretvault
 *.exe
 *.exe~
 *.dll
@@ -26,6 +27,10 @@ go.work.sum
 
 # env file
 .env
+
+# Vault files
+*.enc
+.secret-vault/
 
 # Editor/IDE
 # .idea/
