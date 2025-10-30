@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 
@@ -185,8 +187,12 @@ func handleAdd(name string) {
 	}
 
 	fmt.Print("Enter description (optional): ")
-	var description string
-	fmt.Scanln(&description)
+	reader := bufio.NewReader(os.Stdin)
+	description, err := reader.ReadString('\n')
+	if err != nil {
+		description = ""
+	}
+	description = strings.TrimSpace(description)
 
 	v.AddSecret(name, value, description)
 

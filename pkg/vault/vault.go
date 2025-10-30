@@ -40,14 +40,14 @@ func (v *Vault) AddSecret(name, value, description string) {
 		Description: description,
 		UpdatedAt:   now,
 	}
-	
+
 	// Preserve creation time if updating existing secret
 	if existing, exists := v.Secrets[name]; exists {
 		secret.CreatedAt = existing.CreatedAt
 	} else {
 		secret.CreatedAt = now
 	}
-	
+
 	v.Secrets[name] = secret
 }
 
@@ -99,11 +99,11 @@ func GetDefaultVaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	vaultDir := filepath.Join(homeDir, ".secret-vault")
 	if err := os.MkdirAll(vaultDir, 0700); err != nil {
 		return "", err
 	}
-	
+
 	return filepath.Join(vaultDir, "vault.enc"), nil
 }
