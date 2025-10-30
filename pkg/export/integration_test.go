@@ -229,13 +229,13 @@ func TestCrossFormatCompatibility(t *testing.T) {
 // TestLargeVaultExportImport tests export/import with many secrets
 func TestLargeVaultExportImport(t *testing.T) {
 	v := vault.NewVault()
-	
+
 	// Add 100 secrets
 	for i := 0; i < 100; i++ {
 		v.AddSecret(
-			string(rune('a'+i%26))+string(rune('a'+(i/26)%26))+"-key",
-			"value-"+string(rune('0'+i%10)),
-			"Description "+string(rune('0'+i%10)),
+			formatKeyName(i),
+			formatValue(i),
+			formatDescription(i),
 		)
 	}
 
@@ -270,4 +270,18 @@ func TestLargeVaultExportImport(t *testing.T) {
 			break
 		}
 	}
+}
+
+// Helper functions for test data generation
+
+func formatKeyName(i int) string {
+	return string(rune('a'+i%26)) + string(rune('a'+(i/26)%26)) + "-key"
+}
+
+func formatValue(i int) string {
+	return "value-" + string(rune('0'+i%10))
+}
+
+func formatDescription(i int) string {
+	return "Description " + string(rune('0'+i%10))
 }
