@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/matteospanio/secret-vault-cli/pkg/git"
+	"github.com/matteospanio/secret-vault-cli/pkg/sync"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -110,6 +111,53 @@ var gitUninstallHooksCmd = &cobra.Command{
 	},
 }
 
+// syncCmd represents the sync command group
+var syncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "Cloud sync commands",
+	Long:  `Commands for synchronizing vault across cloud storage providers.`,
+}
+
+// syncConfigureCmd represents the sync configure command
+var syncConfigureCmd = &cobra.Command{
+	Use:   "configure",
+	Short: "Configure cloud sync",
+	Long:  `Configure cloud sync provider (currently supports Nextcloud).`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleSyncConfigure()
+	},
+}
+
+// syncPushCmd represents the sync push command
+var syncPushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "Upload vault to cloud",
+	Long:  `Upload the local vault to the configured cloud storage.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleSyncPush()
+	},
+}
+
+// syncPullCmd represents the sync pull command
+var syncPullCmd = &cobra.Command{
+	Use:   "pull",
+	Short: "Download vault from cloud",
+	Long:  `Download the vault from the configured cloud storage.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleSyncPull()
+	},
+}
+
+// syncStatusCmd represents the sync status command
+var syncStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show sync status",
+	Long:  `Display the current sync status and differences between local and remote.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleSyncStatus()
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -128,10 +176,17 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(gitCmd)
+	rootCmd.AddCommand(syncCmd)
 
 	// Add git subcommands
 	gitCmd.AddCommand(gitInstallHooksCmd)
 	gitCmd.AddCommand(gitUninstallHooksCmd)
+
+	// Add sync subcommands
+	syncCmd.AddCommand(syncConfigureCmd)
+	syncCmd.AddCommand(syncPushCmd)
+	syncCmd.AddCommand(syncPullCmd)
+	syncCmd.AddCommand(syncStatusCmd)
 }
 
 func initConfig() {
@@ -459,4 +514,320 @@ func handleGitUninstallHooks() {
 	}
 
 	fmt.Println("✓ Git hooks uninstalled successfully")
+}
+
+func handleSyncConfigure() {
+	fmt.Println("Configure Cloud Sync")
+	fmt.Println("====================")
+	fmt.Println()
+
+	// Get provider
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Provider (nextcloud): ")
+	provider, _ := reader.ReadString('\n')
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		provider = "nextcloud"
+	}
+
+	if provider != "nextcloud" {
+		fmt.Printf("Error: unsupported provider '%s'. Currently only 'nextcloud' is supported.\n", provider)
+		os.Exit(1)
+	}
+
+	// Get Nextcloud configuration
+	fmt.Print("Nextcloud URL (e.g., https://cloud.example.com): ")
+	url, _ := reader.ReadString('\n')
+	url = strings.TrimSpace(url)
+
+	fmt.Print("Username: ")
+	username, _ := reader.ReadString('\n')
+	username = strings.TrimSpace(username)
+
+	fmt.Print("Password: ")
+	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+	fmt.Println()
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+	ncPassword := string(passwordBytes)
+
+	fmt.Print("Remote path (e.g., /Vaults/vault.enc): ")
+	path, _ := reader.ReadString('\n')
+	path = strings.TrimSpace(path)
+
+	// Validate inputs
+	if url == "" || username == "" || ncPassword == "" || path == "" {
+		fmt.Println("Error: all fields are required")
+		os.Exit(1)
+	}
+
+	// Create config
+	config := &sync.SyncConfig{
+		Provider: provider,
+		Settings: map[string]interface{}{
+			"url":      url,
+			"username": username,
+			"password": ncPassword,
+			"path":     path,
+		},
+	}
+
+	// Get config path
+	configPath, err := sync.GetDefaultConfigPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Save config
+	if err := sync.SaveSyncConfig(configPath, config); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println()
+	fmt.Printf("✓ Sync configured successfully\n")
+	fmt.Printf("  Provider: %s\n", provider)
+	fmt.Printf("  URL: %s\n", url)
+	fmt.Printf("  Username: %s\n", username)
+	fmt.Printf("  Remote path: %s\n", path)
+	fmt.Println()
+	fmt.Println("Use 'secretvault sync push' to upload your vault")
+	fmt.Println("Use 'secretvault sync pull' to download your vault")
+}
+
+func handleSyncPush() {
+	// Load sync config
+	configPath, err := sync.GetDefaultConfigPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	config, err := sync.LoadSyncConfig(configPath)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get vault path
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	// Create provider
+	var provider sync.SyncProvider
+	if config.Provider == "nextcloud" {
+		ncConfig, err := sync.ParseNextcloudConfig(config)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		provider = sync.NewNextcloudProvider(ncConfig)
+	} else {
+		fmt.Printf("Error: unsupported provider '%s'\n", config.Provider)
+		os.Exit(1)
+	}
+
+	// Connect
+	fmt.Println("Connecting to cloud provider...")
+	if err := provider.Connect(); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer provider.Disconnect()
+
+	// Create sync manager
+	manager := sync.NewManager(provider, vaultPath)
+
+	// Push
+	fmt.Println("Uploading vault...")
+	if err := manager.Push(false); err != nil {
+		// Check if it's a conflict error
+		if conflictErr, ok := err.(*sync.ErrConflict); ok {
+			fmt.Println("Error: Sync conflict detected!")
+			fmt.Printf("  Local modified: %v\n", conflictErr.Local.LastModified)
+			fmt.Printf("  Remote modified: %v\n", conflictErr.Remote.LastModified)
+			fmt.Println()
+			fmt.Println("To resolve, you can:")
+			fmt.Println("  1. Pull remote changes: secretvault sync pull")
+			fmt.Println("  2. Force push (overwrites remote): secretvault sync push --force")
+			os.Exit(1)
+		}
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Vault uploaded successfully")
+}
+
+func handleSyncPull() {
+	// Load sync config
+	configPath, err := sync.GetDefaultConfigPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	config, err := sync.LoadSyncConfig(configPath)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get vault path
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create provider
+	var provider sync.SyncProvider
+	if config.Provider == "nextcloud" {
+		ncConfig, err := sync.ParseNextcloudConfig(config)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		provider = sync.NewNextcloudProvider(ncConfig)
+	} else {
+		fmt.Printf("Error: unsupported provider '%s'\n", config.Provider)
+		os.Exit(1)
+	}
+
+	// Connect
+	fmt.Println("Connecting to cloud provider...")
+	if err := provider.Connect(); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer provider.Disconnect()
+
+	// Create sync manager
+	manager := sync.NewManager(provider, vaultPath)
+
+	// Pull
+	fmt.Println("Downloading vault...")
+	if err := manager.Pull(false); err != nil {
+		// Check if it's a conflict error
+		if conflictErr, ok := err.(*sync.ErrConflict); ok {
+			fmt.Println("Error: Sync conflict detected!")
+			fmt.Printf("  Local modified: %v\n", conflictErr.Local.LastModified)
+			fmt.Printf("  Remote modified: %v\n", conflictErr.Remote.LastModified)
+			fmt.Println()
+			fmt.Println("To resolve, you can:")
+			fmt.Println("  1. Force pull (overwrites local): secretvault sync pull --force")
+			fmt.Println("  2. Push local changes: secretvault sync push")
+			os.Exit(1)
+		}
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Vault downloaded successfully")
+}
+
+func handleSyncStatus() {
+	// Load sync config
+	configPath, err := sync.GetDefaultConfigPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	config, err := sync.LoadSyncConfig(configPath)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get vault path
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create provider
+	var provider sync.SyncProvider
+	if config.Provider == "nextcloud" {
+		ncConfig, err := sync.ParseNextcloudConfig(config)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		provider = sync.NewNextcloudProvider(ncConfig)
+	} else {
+		fmt.Printf("Error: unsupported provider '%s'\n", config.Provider)
+		os.Exit(1)
+	}
+
+	// Connect
+	if err := provider.Connect(); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer provider.Disconnect()
+
+	// Create sync manager
+	manager := sync.NewManager(provider, vaultPath)
+
+	// Get status
+	status, err := manager.Status()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Display status
+	fmt.Println("Sync Status")
+	fmt.Println("===========")
+	fmt.Println()
+	fmt.Printf("Provider: %s\n", config.Provider)
+	fmt.Println()
+
+	if status.LocalExists {
+		fmt.Println("Local Vault:")
+		fmt.Printf("  Last modified: %v\n", status.LocalMetadata.LastModified.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  Size: %d bytes\n", status.LocalMetadata.Size)
+		fmt.Printf("  Checksum: %s\n", status.LocalMetadata.Checksum[:16]+"...")
+	} else {
+		fmt.Println("Local Vault: Not found")
+	}
+
+	fmt.Println()
+
+	if status.RemoteExists {
+		fmt.Println("Remote Vault:")
+		fmt.Printf("  Last modified: %v\n", status.RemoteMetadata.LastModified.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  Size: %d bytes\n", status.RemoteMetadata.Size)
+		fmt.Printf("  Checksum: %s\n", status.RemoteMetadata.Checksum[:16]+"...")
+	} else {
+		fmt.Println("Remote Vault: Not found")
+	}
+
+	fmt.Println()
+
+	if status.HasConflict {
+		fmt.Println("Status: ⚠️  CONFLICT - Both local and remote have changed")
+		fmt.Println("Action: Use 'sync pull' or 'sync push' to resolve")
+	} else if status.InSync {
+		fmt.Println("Status: ✓ In sync")
+	} else if status.LocalExists && !status.RemoteExists {
+		fmt.Println("Status: Local only - Use 'sync push' to upload")
+	} else if !status.LocalExists && status.RemoteExists {
+		fmt.Println("Status: Remote only - Use 'sync pull' to download")
+	} else {
+		fmt.Println("Status: Out of sync")
+	}
 }
