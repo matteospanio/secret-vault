@@ -8,6 +8,7 @@ A secure command-line application for storing and managing API tokens, secrets, 
 - 🔑 **Password-Based Protection**: Master password secures all stored secrets
 - 📦 **Simple CLI Interface**: Built with Cobra for robust command parsing
 - 💾 **Portable Vault**: Encrypted vault file can be synced across machines
+- ☁️ **Cloud Sync**: Built-in Nextcloud/WebDAV sync with conflict detection and resolution
 - 🛡️ **Secure Storage**: Vault file has restrictive permissions (600)
 - ⚡ **Fast Access**: Quick retrieval of tokens when you need them
 - 🔧 **Flexible Configuration**: Support for flags, environment variables, and config files via Viper
@@ -225,9 +226,68 @@ secretvault completion fish > ~/.config/fish/completions/secretvault.fish
 secretvault completion powershell > secretvault.ps1
 ```
 
-### Syncing Across Machines
+### Cloud Sync (Nextcloud/WebDAV)
 
-The encrypted vault file can be safely stored in cloud storage:
+Secret Vault CLI includes built-in cloud sync support for Nextcloud and other WebDAV-compatible services. This provides automatic synchronization across multiple devices while maintaining encryption.
+
+#### Configure Sync
+
+```bash
+secretvault sync configure
+# Follow prompts to enter:
+# - Provider: nextcloud
+# - Nextcloud URL: https://cloud.example.com
+# - Username: your-username
+# - Password: your-password
+# - Remote path: /Vaults/vault.enc
+```
+
+#### Push Vault to Cloud
+
+```bash
+secretvault sync push
+```
+
+Uploads your encrypted vault to the configured cloud storage. The vault remains encrypted during transit and storage.
+
+#### Pull Vault from Cloud
+
+```bash
+secretvault sync pull
+```
+
+Downloads the vault from cloud storage. Useful when setting up a new machine or retrieving updates.
+
+#### Check Sync Status
+
+```bash
+secretvault sync status
+```
+
+Shows the current sync state, including:
+- Local and remote vault metadata
+- Last sync time
+- Whether vaults are in sync
+- Any conflicts that need resolution
+
+#### Conflict Resolution
+
+If both local and remote vaults have changed since the last sync, you'll see a conflict error:
+
+```bash
+$ secretvault sync push
+Error: Sync conflict detected!
+  Local modified: 2025-01-15 14:30:00
+  Remote modified: 2025-01-15 14:35:00
+
+To resolve, you can:
+  1. Pull remote changes: secretvault sync pull
+  2. Force push (overwrites remote): secretvault sync push --force
+```
+
+### Manual Syncing Across Machines
+
+You can also manually sync by placing the vault file in cloud storage:
 
 ```bash
 # On machine 1
@@ -278,6 +338,16 @@ secret-vault-cli/
 │   ├── crypto/           # Encryption/decryption logic
 │   │   ├── crypto.go
 │   │   └── crypto_test.go
+│   ├── git/              # Git workflow integration
+│   │   ├── git.go
+│   │   └── git_test.go
+│   ├── sync/             # Cloud sync functionality
+│   │   ├── provider.go   # SyncProvider interface
+│   │   ├── nextcloud.go  # Nextcloud/WebDAV implementation
+│   │   ├── config.go     # Configuration management
+│   │   ├── metadata.go   # Version tracking and checksums
+│   │   ├── manager.go    # Sync orchestration
+│   │   └── *_test.go     # Comprehensive tests
 │   └── vault/            # Vault data structure and storage
 │       ├── vault.go
 │       ├── storage.go
@@ -291,7 +361,12 @@ secret-vault-cli/
 
 1. **Vault Package**: Manages secret storage and retrieval
 2. **Crypto Package**: Handles AES-256-GCM encryption/decryption
-3. **CLI**: Built with [Cobra](https://github.com/spf13/cobra) for robust command structure and [Viper](https://github.com/spf13/viper) for flexible configuration management
+3. **Sync Package**: Modular cloud sync with provider abstraction
+   - **SyncProvider Interface**: Extensible design for multiple cloud providers
+   - **NextcloudProvider**: WebDAV-based sync for Nextcloud/ownCloud
+   - **Metadata System**: Checksum verification and conflict detection
+4. **Git Package**: Git workflow integration with hooks
+5. **CLI**: Built with [Cobra](https://github.com/spf13/cobra) for robust command structure and [Viper](https://github.com/spf13/viper) for flexible configuration management
 
 ## Development
 
@@ -326,12 +401,17 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 - [x] Git workflow integration (git hooks)
 - [x] Token suggestion mechanism based on context (via hooks)
+- [x] Cloud sync with Nextcloud/WebDAV
+- [x] Conflict detection and resolution
+- [x] Modular sync architecture for future providers
 - [ ] Shell completions (bash, zsh, fish) *(partial - via Cobra)*
 - [ ] Auto-fill capabilities (advanced)
 - [ ] Import/export functionality
 - [ ] Secret rotation reminders
 
 ### Phase 3 - Advanced Features (Future)
+
+- [ ] Additional sync providers (Dropbox, Google Drive, OneDrive)
 
 - [ ] System keychain integration (macOS Keychain, Windows Credential Manager)
 - [ ] Cloud secret manager integration (AWS Secrets Manager, HashiCorp Vault)
