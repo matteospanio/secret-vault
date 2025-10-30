@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"text/tabwriter"
 
+	"github.com/matteospanio/secret-vault-cli/pkg/git"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -81,6 +82,34 @@ var removeCmd = &cobra.Command{
 	},
 }
 
+// gitCmd represents the git command group
+var gitCmd = &cobra.Command{
+	Use:   "git",
+	Short: "Git workflow integration commands",
+	Long:  `Commands for integrating Secret Vault CLI with Git workflows via hooks.`,
+}
+
+// gitInstallHooksCmd represents the git install-hooks command
+var gitInstallHooksCmd = &cobra.Command{
+	Use:   "install-hooks",
+	Short: "Install Git hooks for Secret Vault integration",
+	Long: `Install Git hooks that integrate Secret Vault CLI with Git operations.
+The hooks will notify you about token opportunities when pushing to remotes.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleGitInstallHooks()
+	},
+}
+
+// gitUninstallHooksCmd represents the git uninstall-hooks command
+var gitUninstallHooksCmd = &cobra.Command{
+	Use:   "uninstall-hooks",
+	Short: "Uninstall Git hooks",
+	Long:  `Remove Git hooks installed by Secret Vault CLI.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleGitUninstallHooks()
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -98,6 +127,11 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)
+	rootCmd.AddCommand(gitCmd)
+
+	// Add git subcommands
+	gitCmd.AddCommand(gitInstallHooksCmd)
+	gitCmd.AddCommand(gitUninstallHooksCmd)
 }
 
 func initConfig() {
@@ -375,4 +409,54 @@ func handleRemove(name string) {
 	}
 
 	fmt.Printf("✓ Secret '%s' removed successfully\n", name)
+}
+
+func handleGitInstallHooks() {
+	// Get vault path for hooks
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Check if we're in a git repository
+	_, err = git.GetGitRootDir()
+	if err != nil {
+		fmt.Println("Error: not in a Git repository")
+		fmt.Println("Navigate to a Git repository and try again")
+		os.Exit(1)
+	}
+
+	// Install hooks
+	err = git.InstallHooks("", vaultPath)
+	if err != nil {
+		fmt.Printf("Error installing hooks: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Git hooks installed successfully")
+	fmt.Println()
+	fmt.Println("The following hooks have been installed:")
+	fmt.Println("  • pre-push: Notifies about token opportunities when pushing")
+	fmt.Println()
+	fmt.Println("Try pushing to a remote to see the integration in action!")
+}
+
+func handleGitUninstallHooks() {
+	// Check if we're in a git repository
+	_, err := git.GetGitRootDir()
+	if err != nil {
+		fmt.Println("Error: not in a Git repository")
+		fmt.Println("Navigate to a Git repository and try again")
+		os.Exit(1)
+	}
+
+	// Uninstall hooks
+	err = git.UninstallHooks()
+	if err != nil {
+		fmt.Printf("Error uninstalling hooks: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Git hooks uninstalled successfully")
 }
