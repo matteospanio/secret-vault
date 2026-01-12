@@ -26,7 +26,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "secretvault",
 	Short: "Secure token and secret storage",
-	Long: `Secret Vault CLI - A command-line application for securely storing 
+	Long: `Secret Vault CLI - A command-line application for securely storing
 and retrieving API tokens and credentials with encryption.`,
 }
 

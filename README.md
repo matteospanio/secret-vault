@@ -76,8 +76,8 @@ Permanently deletes the secret from your vault.
 
 ```bash
 $ secretvault add github-token
-Enter master password: 
-Enter secret value: 
+Enter master password:
+Enter secret value:
 Enter description (optional): GitHub PAT for CLI access
 ✓ Secret 'github-token' added successfully
 ```
@@ -103,7 +103,7 @@ secretvault add aws-access-key
 
 ```bash
 $ secretvault list
-Enter master password: 
+Enter master password:
 NAME            DESCRIPTION              CREATED     UPDATED
 ----            -----------              -------     -------
 github-token    GitHub PAT for CLI      2025-01-15  2025-01-15
