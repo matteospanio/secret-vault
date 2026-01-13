@@ -413,13 +413,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ### Phase 3 - Advanced Features (Future)
 
 - [ ] Additional sync providers (Dropbox, Google Drive, OneDrive)
-
 - [ ] System keychain integration (macOS Keychain, Windows Credential Manager)
-- [ ] Cloud secret manager integration (AWS Secrets Manager, HashiCorp Vault)
-- [ ] SSH key management
-- [ ] OAuth token management
-- [ ] GUI front-end
-- [ ] Browser extension integration
 
 ## License
 
