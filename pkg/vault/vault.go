@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// DefaultAgeThreshold is the default threshold for considering a secret "old" (1 year)
+const DefaultAgeThreshold = 365 * 24 * time.Hour
+
 // Secret represents a single secret entry
 type Secret struct {
 	Name        string    `json:"name"`
@@ -17,6 +20,16 @@ type Secret struct {
 	Tags        []string  `json:"tags,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// GetAge returns the duration since the secret was last updated
+func (s *Secret) GetAge() time.Duration {
+	return time.Since(s.UpdatedAt)
+}
+
+// IsOld returns true if the secret's age exceeds the given threshold
+func (s *Secret) IsOld(threshold time.Duration) bool {
+	return s.GetAge() > threshold
 }
 
 // Vault represents the collection of secrets

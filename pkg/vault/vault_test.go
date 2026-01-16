@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestNewVault(t *testing.T) {
@@ -322,4 +323,165 @@ func containsHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestSecretGetAge(t *testing.T) {
+	tests := []struct {
+		name        string
+		updatedAt   time.Time
+		minExpected time.Duration
+		maxExpected time.Duration
+	}{
+		{
+			name:        "newly created secret",
+			updatedAt:   time.Now(),
+			minExpected: 0,
+			maxExpected: time.Second,
+		},
+		{
+			name:        "one day old secret",
+			updatedAt:   time.Now().Add(-24 * time.Hour),
+			minExpected: 24*time.Hour - time.Second,
+			maxExpected: 24*time.Hour + time.Second,
+		},
+		{
+			name:        "one year old secret",
+			updatedAt:   time.Now().Add(-365 * 24 * time.Hour),
+			minExpected: 365*24*time.Hour - time.Second,
+			maxExpected: 365*24*time.Hour + time.Second,
+		},
+		{
+			name:        "very old secret (5 years)",
+			updatedAt:   time.Now().Add(-5 * 365 * 24 * time.Hour),
+			minExpected: 5*365*24*time.Hour - time.Second,
+			maxExpected: 5*365*24*time.Hour + time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret := Secret{
+				Name:      "test",
+				Value:     "value",
+				UpdatedAt: tt.updatedAt,
+			}
+
+			age := secret.GetAge()
+
+			if age < tt.minExpected || age > tt.maxExpected {
+				t.Errorf("GetAge() = %v, expected between %v and %v", age, tt.minExpected, tt.maxExpected)
+			}
+		})
+	}
+}
+
+func TestSecretGetAgeWithZeroTime(t *testing.T) {
+	secret := Secret{
+		Name:      "test",
+		Value:     "value",
+		UpdatedAt: time.Time{}, // zero time
+	}
+
+	age := secret.GetAge()
+
+	// Age from zero time should be very large (since epoch)
+	if age < 50*365*24*time.Hour {
+		t.Errorf("GetAge() with zero time should return age since epoch, got %v", age)
+	}
+}
+
+func TestSecretIsOld(t *testing.T) {
+	tests := []struct {
+		name      string
+		updatedAt time.Time
+		threshold time.Duration
+		expected  bool
+	}{
+		{
+			name:      "new secret is not old",
+			updatedAt: time.Now(),
+			threshold: DefaultAgeThreshold,
+			expected:  false,
+		},
+		{
+			name:      "secret just under threshold is not old",
+			updatedAt: time.Now().Add(-364 * 24 * time.Hour),
+			threshold: DefaultAgeThreshold,
+			expected:  false,
+		},
+		{
+			name:      "secret just over threshold is old",
+			updatedAt: time.Now().Add(-366 * 24 * time.Hour),
+			threshold: DefaultAgeThreshold,
+			expected:  true,
+		},
+		{
+			name:      "very old secret is old",
+			updatedAt: time.Now().Add(-5 * 365 * 24 * time.Hour),
+			threshold: DefaultAgeThreshold,
+			expected:  true,
+		},
+		{
+			name:      "custom threshold - 30 days",
+			updatedAt: time.Now().Add(-31 * 24 * time.Hour),
+			threshold: 30 * 24 * time.Hour,
+			expected:  true,
+		},
+		{
+			name:      "custom threshold - secret under 30 days",
+			updatedAt: time.Now().Add(-29 * 24 * time.Hour),
+			threshold: 30 * 24 * time.Hour,
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret := Secret{
+				Name:      "test",
+				Value:     "value",
+				UpdatedAt: tt.updatedAt,
+			}
+
+			result := secret.IsOld(tt.threshold)
+
+			if result != tt.expected {
+				t.Errorf("IsOld(%v) = %v, expected %v", tt.threshold, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDefaultAgeThreshold(t *testing.T) {
+	expectedDuration := 365 * 24 * time.Hour
+
+	if DefaultAgeThreshold != expectedDuration {
+		t.Errorf("DefaultAgeThreshold = %v, expected %v (1 year)", DefaultAgeThreshold, expectedDuration)
+	}
+}
+
+func TestSecretIsOldBoundaryCondition(t *testing.T) {
+	// Test exact boundary: secret updated exactly at threshold
+	threshold := 24 * time.Hour
+	exactlyAtThreshold := time.Now().Add(-threshold)
+
+	secret := Secret{
+		Name:      "test",
+		Value:     "value",
+		UpdatedAt: exactlyAtThreshold,
+	}
+
+	// At exactly the threshold, IsOld should return false (uses > not >=)
+	// Due to time passing during test execution, we need some tolerance
+	// The secret age will be >= threshold, so it might be just over
+	result := secret.IsOld(threshold)
+
+	// This is a boundary test - the exact result depends on timing
+	// The important thing is that the function works consistently
+	if secret.GetAge() > threshold && !result {
+		t.Errorf("IsOld() should return true when age > threshold")
+	}
+	if secret.GetAge() <= threshold && result {
+		t.Errorf("IsOld() should return false when age <= threshold")
+	}
 }

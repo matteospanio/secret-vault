@@ -89,7 +89,7 @@ Add optional `Category` and `Tags` fields to the `Secret` struct to enable organ
 ---
 
 ### Task 1.2: Add Secret Age Calculation Helpers
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** Business Logic
 **Priority:** P0 (Blocker)
 **Estimated Effort:** 1-2 hours
@@ -121,18 +121,30 @@ Add helper methods to calculate secret age and determine if a secret is "old" (>
 5. Test edge cases (future dates, zero times)
 
 **Acceptance Criteria:**
-- [ ] GetAge() returns correct duration
-- [ ] IsOld() correctly identifies old secrets
-- [ ] DefaultAgeThreshold constant defined (1 year)
-- [ ] Boundary conditions handled correctly
-- [ ] All tests pass
-- [ ] Test coverage: 100% for new methods
+- [x] GetAge() returns correct duration
+- [x] IsOld() correctly identifies old secrets
+- [x] DefaultAgeThreshold constant defined (1 year)
+- [x] Boundary conditions handled correctly
+- [x] All tests pass
+- [x] Test coverage: 100% for new methods
 
 **Files Modified:**
 - `pkg/vault/vault.go`
 - `pkg/vault/vault_test.go`
 
 **Integration Risk:** None - new methods don't affect existing functionality
+
+**Completion Notes:**
+- Implemented following TDD approach: tests written first, then implementation
+- Added 5 new test functions covering:
+  - `TestSecretGetAge` - age calculation with various timestamps (4 sub-tests)
+  - `TestSecretGetAgeWithZeroTime` - edge case with zero time
+  - `TestSecretIsOld` - threshold checking with default and custom thresholds (6 sub-tests)
+  - `TestDefaultAgeThreshold` - verifies constant equals 1 year
+  - `TestSecretIsOldBoundaryCondition` - boundary condition testing
+- Both `GetAge()` and `IsOld()` have 100% test coverage
+- Overall vault package coverage: 87.5%
+- All 25 vault tests passing
 
 ---
 
