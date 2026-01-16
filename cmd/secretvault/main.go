@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"text/tabwriter"
 
+	"github.com/matteospanio/secret-vault-cli/pkg/clipboard"
 	"github.com/matteospanio/secret-vault-cli/pkg/git"
 	"github.com/matteospanio/secret-vault-cli/pkg/sync"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
@@ -18,8 +19,9 @@ import (
 )
 
 var (
-	vaultPath string
-	password  string
+	vaultPath       string
+	password        string
+	copyToClipboard bool
 )
 
 // rootCmd represents the base command
@@ -55,8 +57,9 @@ var addCmd = &cobra.Command{
 var getCmd = &cobra.Command{
 	Use:   "get <name>",
 	Short: "Retrieve a secret value",
-	Long:  `Retrieve and print a secret value to stdout (suitable for piping).`,
-	Args:  cobra.ExactArgs(1),
+	Long: `Retrieve and print a secret value to stdout (suitable for piping).
+Use --copy to copy the value to the clipboard instead of printing it.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		handleGet(args[0])
 	},
@@ -158,6 +161,16 @@ var syncStatusCmd = &cobra.Command{
 	},
 }
 
+// clearClipboardCmd represents the clear-clipboard command
+var clearClipboardCmd = &cobra.Command{
+	Use:   "clear-clipboard",
+	Short: "Clear the system clipboard",
+	Long:  `Remove all content from the system clipboard. Useful after copying sensitive secrets.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleClearClipboard()
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -169,6 +182,9 @@ func init() {
 	viper.BindPFlag("vault-path", rootCmd.PersistentFlags().Lookup("vault-path"))
 	viper.BindPFlag("password", rootCmd.PersistentFlags().Lookup("password"))
 
+	// Get command flags
+	getCmd.Flags().BoolVarP(&copyToClipboard, "copy", "c", false, "copy secret value to clipboard instead of printing")
+
 	// Add commands
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(addCmd)
@@ -177,6 +193,7 @@ func init() {
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(gitCmd)
 	rootCmd.AddCommand(syncCmd)
+	rootCmd.AddCommand(clearClipboardCmd)
 
 	// Add git subcommands
 	gitCmd.AddCommand(gitInstallHooksCmd)
@@ -372,7 +389,16 @@ func handleGet(name string) {
 		os.Exit(1)
 	}
 
-	fmt.Println(secret.Value)
+	if copyToClipboard {
+		err := clipboard.CopyToClipboard(secret.Value)
+		if err != nil {
+			fmt.Printf("Error: failed to copy to clipboard: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✓ Secret copied to clipboard")
+	} else {
+		fmt.Println(secret.Value)
+	}
 }
 
 func handleList() {
@@ -830,4 +856,13 @@ func handleSyncStatus() {
 	} else {
 		fmt.Println("Status: Out of sync")
 	}
+}
+
+func handleClearClipboard() {
+	err := clipboard.ClearClipboard()
+	if err != nil {
+		fmt.Printf("Error: failed to clear clipboard: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("✓ Clipboard cleared")
 }

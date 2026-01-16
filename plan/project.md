@@ -320,7 +320,7 @@ Implement cross-platform clipboard copy, clear, and read operations.
 ---
 
 ### Task 2.3: Add CLI Command for Clipboard Operations
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** CLI Enhancement
 **Priority:** P1 (High)
 **Estimated Effort:** 1-2 hours
@@ -346,12 +346,12 @@ Add `--copy` flag to `get` command and `clear-clipboard` command to CLI.
      ```
 
 **Acceptance Criteria:**
-- [ ] `secretvault get <name> --copy` copies to clipboard
-- [ ] `secretvault clear-clipboard` clears clipboard
-- [ ] Success messages displayed
-- [ ] Errors handled gracefully
-- [ ] Existing `get` behavior unchanged when flag not used
-- [ ] Help text updated
+- [x] `secretvault get <name> --copy` copies to clipboard
+- [x] `secretvault clear-clipboard` clears clipboard
+- [x] Success messages displayed
+- [x] Errors handled gracefully
+- [x] Existing `get` behavior unchanged when flag not used
+- [x] Help text updated
 
 **Files Modified:**
 - `cmd/secretvault/main.go`
@@ -368,6 +368,17 @@ secretvault get test-token
 ```
 
 **Integration Risk:** Low - additive flag only
+
+**Completion Notes:**
+- Added `github.com/matteospanio/secret-vault-cli/pkg/clipboard` import
+- Added `copyToClipboard` bool flag variable
+- Added `--copy` / `-c` flag to `get` command with short flag support
+- Added `clear-clipboard` command with `handleClearClipboard()` handler
+- Updated `handleGet()` to conditionally copy to clipboard or print to stdout
+- Both commands display success messages with ✓ checkmark
+- Errors are handled gracefully with descriptive messages
+- All existing tests passing
+- Build successful
 
 ---
 
