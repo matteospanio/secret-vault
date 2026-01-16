@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -93,6 +94,75 @@ func (v *Vault) ListSecrets() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// FilterByCategory returns all secrets matching the given category (case-insensitive)
+func (v *Vault) FilterByCategory(category string) []Secret {
+	result := make([]Secret, 0)
+	categoryLower := strings.ToLower(category)
+
+	for _, secret := range v.Secrets {
+		if strings.ToLower(secret.Category) == categoryLower {
+			result = append(result, secret)
+		}
+	}
+	return result
+}
+
+// FilterByTag returns all secrets containing the given tag (case-insensitive)
+func (v *Vault) FilterByTag(tag string) []Secret {
+	result := make([]Secret, 0)
+	if tag == "" {
+		return result
+	}
+	tagLower := strings.ToLower(tag)
+
+	for _, secret := range v.Secrets {
+		for _, t := range secret.Tags {
+			if strings.ToLower(t) == tagLower {
+				result = append(result, secret)
+				break
+			}
+		}
+	}
+	return result
+}
+
+// FilterByAge returns all secrets older than the given threshold
+func (v *Vault) FilterByAge(threshold time.Duration) []Secret {
+	result := make([]Secret, 0)
+
+	for _, secret := range v.Secrets {
+		if secret.IsOld(threshold) {
+			result = append(result, secret)
+		}
+	}
+	return result
+}
+
+// Search returns all secrets matching the query in name or description (case-insensitive)
+func (v *Vault) Search(query string) []Secret {
+	result := make([]Secret, 0)
+
+	// Empty query returns all secrets
+	if query == "" {
+		for _, secret := range v.Secrets {
+			result = append(result, secret)
+		}
+		return result
+	}
+
+	queryLower := strings.ToLower(query)
+
+	for _, secret := range v.Secrets {
+		nameLower := strings.ToLower(secret.Name)
+		descLower := strings.ToLower(secret.Description)
+
+		if strings.Contains(nameLower, queryLower) || strings.Contains(descLower, queryLower) {
+			result = append(result, secret)
+		}
+	}
+	return result
 }
 
 // ToJSON serializes the vault to JSON

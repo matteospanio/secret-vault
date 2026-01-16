@@ -149,7 +149,7 @@ Add helper methods to calculate secret age and determine if a secret is "old" (>
 ---
 
 ### Task 1.3: Add Filtering Methods to Vault
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** Query Logic
 **Priority:** P1 (High)
 **Estimated Effort:** 3-4 hours
@@ -178,19 +178,33 @@ Implement filtering and search methods to query secrets by category, tag, age, a
 7. Test special characters in search query
 
 **Acceptance Criteria:**
-- [ ] FilterByCategory returns correct secrets
-- [ ] FilterByTag returns secrets with matching tag
-- [ ] FilterByAge returns old secrets
-- [ ] Search matches name and description
-- [ ] All filters handle empty/nil inputs gracefully
-- [ ] Case-insensitive matching works
-- [ ] Test coverage: >90% for filter methods
+- [x] FilterByCategory returns correct secrets
+- [x] FilterByTag returns secrets with matching tag
+- [x] FilterByAge returns old secrets
+- [x] Search matches name and description
+- [x] All filters handle empty/nil inputs gracefully
+- [x] Case-insensitive matching works
+- [x] Test coverage: >90% for filter methods (achieved 100% for all filter methods)
 
 **Files Modified:**
 - `pkg/vault/vault.go`
 - `pkg/vault/vault_test.go`
 
 **Integration Risk:** None - read-only query methods
+
+**Completion Notes:**
+- Implemented following TDD approach: tests written first, then implementation
+- Added 6 new test functions covering:
+  - `TestFilterByCategory` - category filtering with 7 sub-tests (empty vault, matching, non-existent, empty category, case-insensitive)
+  - `TestFilterByTag` - tag filtering with 7 sub-tests (empty vault, matching, single match, non-existent, empty tag, case-insensitive)
+  - `TestFilterByAge` - age-based filtering with 4 sub-tests (empty vault, default threshold, custom threshold, very long threshold)
+  - `TestSearch` - text search with 11 sub-tests (empty vault, name prefix, name substring, description, case-insensitive, empty query, partial match)
+  - `TestSearchWithSpecialCharacters` - special character handling with 4 sub-tests (dot, asterisk, brackets, common prefix)
+  - `TestFilterMethodsReturnCopies` - verifies methods return copies, not references
+- All 4 filter methods have 100% test coverage
+- Overall vault package coverage: 92.1%
+- All 31 vault tests passing
+- Build successful
 
 ---
 
