@@ -109,11 +109,11 @@ func TestCopyLargeText(t *testing.T) {
 
 func TestCopySpecialCharacters(t *testing.T) {
 	testCases := []string{
-		"hello\nworld",           // newlines
-		"tab\there",              // tabs
-		"unicode: \u00e9\u00e8",  // accented chars
-		"emoji: \U0001F600",      // emoji
-		"quotes: \"'`",           // quotes
+		"hello\nworld",          // newlines
+		"tab\there",             // tabs
+		"unicode: \u00e9\u00e8", // accented chars
+		"emoji: \U0001F600",     // emoji
+		"quotes: \"'`",          // quotes
 		"special: !@#$%^&*()[]", // special chars
 	}
 
