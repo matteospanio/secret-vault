@@ -331,7 +331,7 @@ func handleAdd(name string) {
 	}
 	description = strings.TrimSpace(description)
 
-	v.AddSecret(name, value, description)
+	v.AddSecret(name, value, description, "", nil)
 
 	err = vault.SaveVault(v, vaultPath, password)
 	if err != nil {

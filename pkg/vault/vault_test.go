@@ -21,7 +21,7 @@ func TestNewVault(t *testing.T) {
 
 func TestAddSecret(t *testing.T) {
 	v := NewVault()
-	v.AddSecret("test-key", "test-value", "Test description")
+	v.AddSecret("test-key", "test-value", "Test description", "", nil)
 
 	if len(v.Secrets) != 1 {
 		t.Fatalf("Expected 1 secret, got %d", len(v.Secrets))
@@ -45,7 +45,7 @@ func TestAddSecret(t *testing.T) {
 
 func TestGetSecret(t *testing.T) {
 	v := NewVault()
-	v.AddSecret("test-key", "test-value", "")
+	v.AddSecret("test-key", "test-value", "", "", nil)
 
 	secret, err := v.GetSecret("test-key")
 	if err != nil {
@@ -64,7 +64,7 @@ func TestGetSecret(t *testing.T) {
 
 func TestRemoveSecret(t *testing.T) {
 	v := NewVault()
-	v.AddSecret("test-key", "test-value", "")
+	v.AddSecret("test-key", "test-value", "", "", nil)
 
 	err := v.RemoveSecret("test-key")
 	if err != nil {
@@ -83,9 +83,9 @@ func TestRemoveSecret(t *testing.T) {
 
 func TestListSecrets(t *testing.T) {
 	v := NewVault()
-	v.AddSecret("key1", "value1", "")
-	v.AddSecret("key2", "value2", "")
-	v.AddSecret("key3", "value3", "")
+	v.AddSecret("key1", "value1", "", "", nil)
+	v.AddSecret("key2", "value2", "", "", nil)
+	v.AddSecret("key3", "value3", "", "", nil)
 
 	names := v.ListSecrets()
 	if len(names) != 3 {
@@ -105,7 +105,7 @@ func TestListSecrets(t *testing.T) {
 
 func TestJSONSerialization(t *testing.T) {
 	v := NewVault()
-	v.AddSecret("test-key", "test-value", "Test description")
+	v.AddSecret("test-key", "test-value", "Test description", "", nil)
 
 	jsonData, err := v.ToJSON()
 	if err != nil {
@@ -151,4 +151,175 @@ func TestGetDefaultVaultPath(t *testing.T) {
 	if !info.IsDir() {
 		t.Error("Vault path is not a directory")
 	}
+}
+
+func TestAddSecretWithCategoryAndTags(t *testing.T) {
+	v := NewVault()
+	v.AddSecret("api-key", "secret123", "My API key", "work", []string{"github", "api"})
+
+	secret, exists := v.Secrets["api-key"]
+	if !exists {
+		t.Fatal("Secret not found")
+	}
+
+	if secret.Category != "work" {
+		t.Errorf("Expected category 'work', got '%s'", secret.Category)
+	}
+
+	if len(secret.Tags) != 2 {
+		t.Fatalf("Expected 2 tags, got %d", len(secret.Tags))
+	}
+
+	if secret.Tags[0] != "github" || secret.Tags[1] != "api" {
+		t.Errorf("Expected tags ['github', 'api'], got %v", secret.Tags)
+	}
+}
+
+func TestAddSecretWithoutCategoryAndTags(t *testing.T) {
+	v := NewVault()
+	v.AddSecret("simple-key", "value123", "Simple secret", "", nil)
+
+	secret, exists := v.Secrets["simple-key"]
+	if !exists {
+		t.Fatal("Secret not found")
+	}
+
+	if secret.Category != "" {
+		t.Errorf("Expected empty category, got '%s'", secret.Category)
+	}
+
+	if secret.Tags != nil && len(secret.Tags) != 0 {
+		t.Errorf("Expected nil or empty tags, got %v", secret.Tags)
+	}
+}
+
+func TestAddSecretPreservesCategoryAndTagsOnUpdate(t *testing.T) {
+	v := NewVault()
+	v.AddSecret("my-secret", "old-value", "desc", "personal", []string{"important"})
+
+	// Update the secret with new value but same category/tags
+	v.AddSecret("my-secret", "new-value", "new desc", "personal", []string{"important", "updated"})
+
+	secret, _ := v.Secrets["my-secret"]
+
+	if secret.Value != "new-value" {
+		t.Errorf("Expected value 'new-value', got '%s'", secret.Value)
+	}
+
+	if secret.Category != "personal" {
+		t.Errorf("Expected category 'personal', got '%s'", secret.Category)
+	}
+
+	if len(secret.Tags) != 2 {
+		t.Fatalf("Expected 2 tags, got %d", len(secret.Tags))
+	}
+}
+
+func TestJSONSerializationWithCategoryAndTags(t *testing.T) {
+	v := NewVault()
+	v.AddSecret("test-key", "test-value", "desc", "work", []string{"tag1", "tag2"})
+
+	jsonData, err := v.ToJSON()
+	if err != nil {
+		t.Fatalf("ToJSON failed: %v", err)
+	}
+
+	v2, err := FromJSON(jsonData)
+	if err != nil {
+		t.Fatalf("FromJSON failed: %v", err)
+	}
+
+	secret, exists := v2.Secrets["test-key"]
+	if !exists {
+		t.Fatal("Secret not found after deserialization")
+	}
+
+	if secret.Category != "work" {
+		t.Errorf("Expected category 'work', got '%s'", secret.Category)
+	}
+
+	if len(secret.Tags) != 2 {
+		t.Fatalf("Expected 2 tags after deserialization, got %d", len(secret.Tags))
+	}
+
+	if secret.Tags[0] != "tag1" || secret.Tags[1] != "tag2" {
+		t.Errorf("Expected tags ['tag1', 'tag2'], got %v", secret.Tags)
+	}
+}
+
+func TestBackwardCompatibilityOldVaultFormat(t *testing.T) {
+	// Simulate old vault JSON without category and tags
+	oldVaultJSON := []byte(`{
+		"secrets": {
+			"old-secret": {
+				"name": "old-secret",
+				"value": "old-value",
+				"description": "old desc",
+				"created_at": "2023-01-15T10:30:00Z",
+				"updated_at": "2023-06-20T14:00:00Z"
+			}
+		},
+		"version": "1.0"
+	}`)
+
+	v, err := FromJSON(oldVaultJSON)
+	if err != nil {
+		t.Fatalf("Failed to load old vault format: %v", err)
+	}
+
+	secret, exists := v.Secrets["old-secret"]
+	if !exists {
+		t.Fatal("Secret not found in old vault")
+	}
+
+	if secret.Name != "old-secret" {
+		t.Errorf("Expected name 'old-secret', got '%s'", secret.Name)
+	}
+
+	if secret.Value != "old-value" {
+		t.Errorf("Expected value 'old-value', got '%s'", secret.Value)
+	}
+
+	// Category and tags should be empty/nil for old secrets
+	if secret.Category != "" {
+		t.Errorf("Expected empty category for old secret, got '%s'", secret.Category)
+	}
+
+	if secret.Tags != nil && len(secret.Tags) > 0 {
+		t.Errorf("Expected nil/empty tags for old secret, got %v", secret.Tags)
+	}
+}
+
+func TestJSONOmitsEmptyCategoryAndTags(t *testing.T) {
+	v := NewVault()
+	v.AddSecret("minimal", "value", "", "", nil)
+
+	jsonData, err := v.ToJSON()
+	if err != nil {
+		t.Fatalf("ToJSON failed: %v", err)
+	}
+
+	jsonStr := string(jsonData)
+
+	// Category and tags with omitempty should not appear in JSON when empty
+	if contains(jsonStr, `"category":""`) {
+		t.Error("Empty category should be omitted from JSON")
+	}
+
+	if contains(jsonStr, `"tags":null`) || contains(jsonStr, `"tags":[]`) {
+		t.Error("Empty/nil tags should be omitted from JSON")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

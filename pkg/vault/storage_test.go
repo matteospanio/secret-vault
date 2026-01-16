@@ -19,8 +19,8 @@ func TestSaveAndLoadVault(t *testing.T) {
 
 	// Create and save a vault
 	v1 := NewVault()
-	v1.AddSecret("key1", "value1", "Description 1")
-	v1.AddSecret("key2", "value2", "Description 2")
+	v1.AddSecret("key1", "value1", "Description 1", "", nil)
+	v1.AddSecret("key2", "value2", "Description 2", "", nil)
 
 	err = SaveVault(v1, vaultPath, password)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestLoadVaultWithWrongPassword(t *testing.T) {
 
 	// Create and save a vault
 	v1 := NewVault()
-	v1.AddSecret("key1", "value1", "")
+	v1.AddSecret("key1", "value1", "", "", nil)
 
 	err = SaveVault(v1, vaultPath, correctPassword)
 	if err != nil {
@@ -130,7 +130,7 @@ func TestSaveVaultPermissions(t *testing.T) {
 	password := "test-password"
 
 	v := NewVault()
-	v.AddSecret("key1", "value1", "")
+	v.AddSecret("key1", "value1", "", "", nil)
 
 	err = SaveVault(v, vaultPath, password)
 	if err != nil {
@@ -162,7 +162,7 @@ func TestUpdateVault(t *testing.T) {
 
 	// Create initial vault
 	v1 := NewVault()
-	v1.AddSecret("key1", "value1", "")
+	v1.AddSecret("key1", "value1", "", "", nil)
 	err = SaveVault(v1, vaultPath, password)
 	if err != nil {
 		t.Fatalf("SaveVault failed: %v", err)
@@ -174,7 +174,7 @@ func TestUpdateVault(t *testing.T) {
 		t.Fatalf("LoadVault failed: %v", err)
 	}
 
-	v2.AddSecret("key2", "value2", "")
+	v2.AddSecret("key2", "value2", "", "", nil)
 	v2.RemoveSecret("key1")
 
 	err = SaveVault(v2, vaultPath, password)

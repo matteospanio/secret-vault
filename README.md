@@ -387,34 +387,6 @@ go build -o secretvault ./cmd/secretvault
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
-## Roadmap
-
-### Phase 1 - Core Vault ✅
-
-- [x] Design vault data structure
-- [x] Implement AES-256-GCM encryption and decryption
-- [x] Build CLI commands for CRUD operations
-- [x] Store configuration securely
-- [x] Cross-platform support (Linux/macOS/Windows)
-- [x] Comprehensive tests
-
-### Phase 2 - Enhanced Features
-
-- [x] Git workflow integration (git hooks)
-- [x] Token suggestion mechanism based on context (via hooks)
-- [x] Cloud sync with Nextcloud/WebDAV
-- [x] Conflict detection and resolution
-- [x] Modular sync architecture for future providers
-- [ ] Shell completions (bash, zsh, fish) *(partial - via Cobra)*
-- [ ] Auto-fill capabilities (advanced)
-- [ ] Import/export functionality
-- [ ] Secret rotation reminders
-
-### Phase 3 - Advanced Features (Future)
-
-- [ ] Additional sync providers (Dropbox, Google Drive, OneDrive)
-- [ ] System keychain integration (macOS Keychain, Windows Credential Manager)
-
 ## License
 
 See [LICENSE](LICENSE) file for details.

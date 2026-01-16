@@ -13,6 +13,8 @@ type Secret struct {
 	Name        string    `json:"name"`
 	Value       string    `json:"value"`
 	Description string    `json:"description,omitempty"`
+	Category    string    `json:"category,omitempty"`
+	Tags        []string  `json:"tags,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -32,12 +34,14 @@ func NewVault() *Vault {
 }
 
 // AddSecret adds or updates a secret in the vault
-func (v *Vault) AddSecret(name, value, description string) {
+func (v *Vault) AddSecret(name, value, description, category string, tags []string) {
 	now := time.Now()
 	secret := Secret{
 		Name:        name,
 		Value:       value,
 		Description: description,
+		Category:    category,
+		Tags:        tags,
 		UpdatedAt:   now,
 	}
 
