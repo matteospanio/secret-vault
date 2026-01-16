@@ -3,6 +3,7 @@ module github.com/matteospanio/secret-vault-cli
 go 1.24.7
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
 	github.com/studio-b12/gowebdav v0.11.0
