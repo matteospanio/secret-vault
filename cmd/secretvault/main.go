@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"text/tabwriter"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/matteospanio/secret-vault-cli/pkg/clipboard"
 	"github.com/matteospanio/secret-vault-cli/pkg/git"
 	"github.com/matteospanio/secret-vault-cli/pkg/sync"
+	"github.com/matteospanio/secret-vault-cli/pkg/tui"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -171,6 +173,16 @@ var clearClipboardCmd = &cobra.Command{
 	},
 }
 
+// tuiCmd represents the tui command
+var tuiCmd = &cobra.Command{
+	Use:   "tui",
+	Short: "Launch terminal user interface",
+	Long:  `Launch an interactive terminal user interface for managing secrets.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleTUI()
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -194,6 +206,7 @@ func init() {
 	rootCmd.AddCommand(gitCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(clearClipboardCmd)
+	rootCmd.AddCommand(tuiCmd)
 
 	// Add git subcommands
 	gitCmd.AddCommand(gitInstallHooksCmd)
@@ -865,4 +878,36 @@ func handleClearClipboard() {
 		os.Exit(1)
 	}
 	fmt.Println("✓ Clipboard cleared")
+}
+
+func handleTUI() {
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	password, err := getPassword("Enter master password: ")
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+
+	v, err := vault.LoadVault(vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Launch TUI
+	p := tea.NewProgram(tui.NewModel(v))
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Error running TUI: %v\n", err)
+		os.Exit(1)
+	}
 }

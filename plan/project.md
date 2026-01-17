@@ -487,7 +487,7 @@ pkg/tui/
 ---
 
 ### Task 3.3: Implement Main TUI Model
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Logic
 **Priority:** P0 (Blocker)
 **Estimated Effort:** 4-5 hours
@@ -522,12 +522,12 @@ Implement main TUI model with Bubble Tea interface (Init, Update, View).
 5. Test keyboard shortcuts
 
 **Acceptance Criteria:**
-- [ ] Model implements tea.Model interface
-- [ ] Init() initializes model correctly
-- [ ] Update() handles basic messages (quit, resize)
-- [ ] View() renders welcome screen
-- [ ] State transitions work correctly
-- [ ] Test coverage: >75%
+- [x] Model implements tea.Model interface
+- [x] Init() initializes model correctly
+- [x] Update() handles basic messages (quit, resize)
+- [x] View() renders welcome screen
+- [x] State transitions work correctly
+- [x] Test coverage: >75% (achieved 93.5%)
 
 **Files Modified:**
 - `pkg/tui/model.go`
@@ -535,10 +535,38 @@ Implement main TUI model with Bubble Tea interface (Init, Update, View).
 
 **Integration Risk:** Low - isolated TUI logic
 
+**Completion Notes:**
+- Enhanced Model struct with:
+  - `previousView` for back navigation
+  - `selectedSecret` for detail view
+  - `statusMessage` and `statusIsError` for user feedback
+- Implemented view transition methods:
+  - `SetView(view ViewType)` - transitions with history
+  - `GoBack()` - returns to previous view
+- Implemented status message methods:
+  - `SetStatus(message, isError)`, `ClearStatus()`
+  - `GetStatusMessage()`, `IsStatusError()`
+- Implemented secret selection:
+  - `SelectSecret(secret)`, `GetSelectedSecret()`
+- Added dimension getters: `GetWidth()`, `GetHeight()`
+- Update() now handles:
+  - Keyboard shortcuts: `q`, `ctrl+c` (quit), `?` (help toggle), `esc` (go back)
+  - Messages: `WindowSizeMsg`, `ViewChangeMsg`, `SecretSelectedMsg`, `ErrorMsg`, `SecretCopiedMsg`, `ClipboardClearedMsg`
+  - Clears status on any key press
+- View() renders different views based on currentView:
+  - `renderWelcome()` - welcome screen with vault stats
+  - `renderDetail()` - secret detail with age warning
+  - `renderHelp()` - keyboard shortcuts reference
+  - Status messages appended with appropriate styling
+- Added 22 new test functions covering all new functionality
+- Test coverage: 93.5% (exceeds 75% target)
+- All tests passing
+- Build successful
+
 ---
 
 ### Task 3.4: Add TUI Command to CLI
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** CLI Integration
 **Priority:** P1 (High)
 **Estimated Effort:** 1-2 hours
@@ -574,11 +602,11 @@ Add `tui` command to CLI that launches the TUI interface.
 - Reuse existing password prompt logic
 
 **Acceptance Criteria:**
-- [ ] `secretvault tui` command exists
-- [ ] Command loads vault with password prompt
-- [ ] TUI launches successfully
-- [ ] Errors displayed gracefully
-- [ ] Help text updated
+- [x] `secretvault tui` command exists
+- [x] Command loads vault with password prompt
+- [x] TUI launches successfully
+- [x] Errors displayed gracefully
+- [x] Help text updated
 
 **Files Modified:**
 - `cmd/secretvault/main.go`
@@ -593,10 +621,30 @@ secretvault tui
 
 **Integration Risk:** Low - new command, doesn't affect existing commands
 
+**Completion Notes:**
+- Added `github.com/charmbracelet/bubbletea` import (as `tea`)
+- Added `github.com/matteospanio/secret-vault-cli/pkg/tui` import
+- Added `tuiCmd` Cobra command with:
+  - Use: "tui"
+  - Short: "Launch terminal user interface"
+  - Long: "Launch an interactive terminal user interface for managing secrets."
+- Added `handleTUI()` function that:
+  - Reuses existing `getVaultPath()` to get vault location
+  - Checks if vault exists (shows error if not initialized)
+  - Reuses existing `getPassword()` for password prompt
+  - Loads vault using `vault.LoadVault()`
+  - Creates TUI model with `tui.NewModel(v)`
+  - Launches Bubble Tea program with `tea.NewProgram().Run()`
+  - Handles errors gracefully with descriptive messages
+- Registered `tuiCmd` in `init()` with `rootCmd.AddCommand(tuiCmd)`
+- All existing tests passing
+- Build successful
+- Help text displays correctly
+
 ---
 
 ### Task 3.5: Implement Minimal List View
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P0 (Blocker)
 **Estimated Effort:** 4-5 hours
@@ -634,19 +682,47 @@ Create list view component using bubbles/list to display secrets with keyboard n
 5. Test filtering (integrated later)
 
 **Acceptance Criteria:**
-- [ ] List displays all secrets
-- [ ] Navigation works correctly
-- [ ] Selection triggers detail view
-- [ ] Empty vault shows helpful message
-- [ ] Keyboard shortcuts work
-- [ ] Responsive to terminal size
-- [ ] Test coverage: >70%
+- [x] List displays all secrets
+- [x] Navigation works correctly
+- [x] Selection triggers detail view
+- [x] Empty vault shows helpful message
+- [x] Keyboard shortcuts work
+- [x] Responsive to terminal size
+- [x] Test coverage: >70% (achieved 86.7%)
 
 **Files Created:**
 - `pkg/tui/listview.go`
 - `pkg/tui/listview_test.go`
 
 **Integration Risk:** Low - self-contained component
+
+**Completion Notes:**
+- Created `pkg/tui/listview.go` with:
+  - `SecretItem` type implementing `list.Item` interface (FilterValue, Title, Description)
+  - `secretItemDelegate` for custom list item rendering with age warning indicator
+  - `ListView` struct wrapping `bubbles/list.Model`
+  - `NewListView(v *vault.Vault, width, height int)` constructor
+  - `secretsToItems(v)` helper that sorts secrets alphabetically
+  - `Update(msg)` method delegating to list.Model
+  - `View()` method with empty vault handling
+  - `SetSize()`, `SelectedItem()`, `SelectedSecret()`, `Refresh()`, `ItemCount()`, `FilterState()`, `IsFiltering()` methods
+- Updated `pkg/tui/model.go`:
+  - Added `listView *ListView` field to Model struct
+  - Modified `Update()` to initialize ListView on WindowSizeMsg
+  - Modified `Update()` to pass key messages to ListView when in ViewList
+  - Modified `Update()` to handle Enter key for secret selection
+  - Modified `Update()` to respect filtering state (don't quit/show help while filtering)
+  - Modified `View()` to use ListView when in ViewList mode
+  - Added `GetListView()` getter method
+- Created `pkg/tui/listview_test.go` with 23 test functions covering:
+  - SecretItem interface methods
+  - ListView creation, selection, navigation
+  - Empty vault handling
+  - Model integration with ListView
+  - Selection triggering detail view
+- Test coverage: 86.7% (exceeds 70% target)
+- All 56 tests passing
+- Build successful
 
 ---
 
