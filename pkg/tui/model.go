@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/matteospanio/secret-vault-cli/pkg/clipboard"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 )
 
@@ -98,6 +99,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			}
+
+		case "C":
+			// Clear clipboard (global action)
+			return m, clearClipboardCmd()
 		}
 
 		// Pass key messages to list view when in list mode
@@ -338,4 +343,15 @@ func (m Model) GetListView() *ListView {
 // GetDetailView returns the detail view instance
 func (m Model) GetDetailView() *DetailView {
 	return m.detailView
+}
+
+// clearClipboardCmd returns a command that clears the clipboard
+func clearClipboardCmd() tea.Cmd {
+	return func() tea.Msg {
+		err := clipboard.ClearClipboard()
+		if err != nil {
+			return ErrorMsg{Err: fmt.Errorf("failed to clear clipboard: %w", err)}
+		}
+		return ClipboardClearedMsg{}
+	}
 }

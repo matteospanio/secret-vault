@@ -455,6 +455,24 @@ func TestUpdateClipboardClearedMsg(t *testing.T) {
 	}
 }
 
+func TestClearClipboardKeyHandler(t *testing.T) {
+	v := vault.NewVault()
+	m := NewModel(v)
+
+	// Make model ready
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Press 'C' to clear clipboard
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")}
+	_, cmd := m.Update(keyMsg)
+
+	if cmd == nil {
+		t.Error("'C' key should return a command for clearing clipboard")
+	}
+}
+
 func TestRenderDetailNoSecret(t *testing.T) {
 	v := vault.NewVault()
 	m := NewModel(v)

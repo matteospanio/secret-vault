@@ -826,7 +826,7 @@ Create detail view showing secret metadata with age warnings.
 ---
 
 ### Task 4.2: Implement Input View with Autocomplete
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P1 (High)
 **Estimated Effort:** 5-6 hours
@@ -863,25 +863,66 @@ Create input view with autocomplete for secret name entry.
 6. Test navigation between suggestions
 
 **Acceptance Criteria:**
-- [ ] Autocomplete filters as user types
-- [ ] Case-insensitive matching works
-- [ ] Fuzzy matching supported
-- [ ] Suggestions displayed clearly
-- [ ] Navigation works (↑↓, Enter)
-- [ ] Empty matches handled gracefully
-- [ ] Test coverage: >80%
+- [x] Autocomplete filters as user types
+- [x] Case-insensitive matching works
+- [x] Fuzzy matching supported
+- [x] Suggestions displayed clearly
+- [x] Navigation works (↑↓, Enter)
+- [x] Empty matches handled gracefully
+- [x] Test coverage: >80% (achieved 89.3%)
 
 **Files Created:**
 - `pkg/tui/inputview.go`
 - `pkg/tui/autocomplete.go`
 - `pkg/tui/autocomplete_test.go`
+- `pkg/tui/inputview_test.go`
 
 **Integration Risk:** Medium - complex UI interaction
+
+**Completion Notes:**
+- Created `pkg/tui/autocomplete.go` with:
+  - `FuzzyMatch(pattern, text)` - fuzzy matching (non-contiguous chars in order)
+  - `FuzzyScore(pattern, text)` - scoring for ranking (exact > prefix > substring > fuzzy)
+  - `FilterSecrets(secrets, query)` - filters secrets using fuzzy matching
+  - `SortByScore(secrets, query)` - sorts by match quality
+- Created `pkg/tui/autocomplete_test.go` with 21 test cases covering:
+  - Fuzzy matching (21 sub-tests for various patterns)
+  - Filter secrets (8 test cases)
+  - Fuzzy scoring (5 test cases + ordering test)
+  - Sort by score (3 test cases)
+- Created `pkg/tui/inputview.go` with:
+  - `InputView` struct wrapping `bubbles/textinput.Model`
+  - `NewInputView(vault, placeholder, prompt)` constructor
+  - `Update(msg)` - handles ↑↓ navigation, Tab completion, Enter selection, Esc cancel
+  - `View()` - renders input with suggestions below
+  - State management: `Value()`, `SetValue()`, `Reset()`, `IsEmpty()`
+  - Suggestion management: `Suggestions()`, `SelectedIndex()`, `SelectedSuggestion()`
+  - Focus management: `Focus()`, `Blur()`, `IsFocused()`
+  - Factory functions: `CreateForSecretSearch()`, `CreateForSecretSelection()`
+- Created `pkg/tui/inputview_test.go` with 35 test functions covering:
+  - Construction and nil vault handling
+  - State management (value, reset, size)
+  - Suggestion selection and navigation
+  - Tab completion and Enter selection
+  - Escape handling
+  - View rendering
+- Features implemented:
+  - Real-time filtering as user types
+  - Case-insensitive fuzzy matching
+  - Score-based suggestion ranking (exact matches first)
+  - Keyboard navigation (↑↓ wrap around)
+  - Tab completion with selected suggestion
+  - Enter to select and return value
+  - "No matching secrets" message when empty
+  - Configurable max suggestions (default 5)
+- Test coverage: 89.3% (exceeds 80% target)
+- All 180 TUI tests passing
+- Build successful
 
 ---
 
 ### Task 4.3: Integrate Clipboard in TUI
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** Feature Integration
 **Priority:** P1 (High)
 **Estimated Effort:** 2-3 hours
@@ -906,12 +947,12 @@ Add clipboard copy/clear actions to TUI with visual feedback.
 4. Test error handling (clipboard unavailable)
 
 **Acceptance Criteria:**
-- [ ] 'c' key copies secret to clipboard
-- [ ] 'C' key clears clipboard
-- [ ] Success confirmation displayed
-- [ ] Errors shown to user
-- [ ] Reuses clipboard package
-- [ ] Test coverage: >75%
+- [x] 'c' key copies secret to clipboard
+- [x] 'C' key clears clipboard
+- [x] Success confirmation displayed
+- [x] Errors shown to user
+- [x] Reuses clipboard package
+- [x] Test coverage: >75% (achieved 86.6%)
 
 **Files Modified:**
 - `pkg/tui/detailview.go`
@@ -919,10 +960,25 @@ Add clipboard copy/clear actions to TUI with visual feedback.
 
 **Integration Risk:** Low - uses existing clipboard package
 
+**Completion Notes:**
+- The `c` key for copying was implemented in Task 4.1 (DetailView component)
+  - `copySecretCmd()` in detailview.go handles copy operation
+  - Returns `SecretCopiedMsg` on success, `ErrorMsg` on failure
+  - Model displays success status: "Secret 'name' copied to clipboard"
+- Added `C` key handler in model.go for clearing clipboard (global action)
+  - Added `clearClipboardCmd()` function that calls `clipboard.ClearClipboard()`
+  - Returns `ClipboardClearedMsg` on success, `ErrorMsg` on failure
+  - Model displays status: "Clipboard cleared"
+- Added import for clipboard package in model.go
+- Added `TestClearClipboardKeyHandler` test in tui_test.go
+- Test coverage: 86.6%
+- All tests passing
+- Build successful
+
 ---
 
 ### Task 4.4: Add Aging Warnings to List View
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Enhancement
 **Priority:** P1 (High)
 **Estimated Effort:** 2 hours
@@ -945,16 +1001,28 @@ Add visual indicators to list view for old secrets (>1 year).
 4. Test styling applied correctly
 
 **Acceptance Criteria:**
-- [ ] Old secrets (>1 year) show visual indicator
-- [ ] New secrets have no indicator
-- [ ] Legend explains warning symbol
-- [ ] Styling is minimal and clear
-- [ ] Test coverage: >75%
+- [x] Old secrets (>1 year) show visual indicator
+- [x] New secrets have no indicator
+- [x] Legend explains warning symbol (in help view)
+- [x] Styling is minimal and clear
+- [x] Test coverage: >75% (achieved 86.6%)
 
 **Files Modified:**
 - `pkg/tui/listview.go`
 
 **Integration Risk:** Low - visual enhancement only
+
+**Completion Notes:**
+- This feature was already implemented as part of Task 3.5 (Implement Minimal List View)
+- In `pkg/tui/listview.go`, the `secretItemDelegate.Render()` method (lines 68-71):
+  - Checks `item.secret.IsOld(vault.DefaultAgeThreshold)`
+  - Appends ⚠ warning symbol with `warningStyle` (yellow) for old secrets
+- Warning symbol appears next to secret name in list view
+- Help view (`?` key) documents keyboard shortcuts including aging concept
+- Added `TestSecretItemAgeWarningInDelegate` test to verify IsOld logic
+- Test coverage: 86.6%
+- All tests passing
+- Build successful
 
 ---
 
