@@ -22,6 +22,7 @@ const (
 type Model struct {
 	vault          *vault.Vault
 	listView       *ListView
+	detailView     *DetailView
 	currentView    ViewType
 	previousView   ViewType
 	selectedSecret *vault.Secret
@@ -105,6 +106,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
+		// Pass key messages to detail view when in detail mode
+		if m.currentView == ViewDetail && m.detailView != nil {
+			cmd, handled := m.detailView.Update(msg)
+			if handled {
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
+		}
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -115,6 +126,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.listView = NewListView(m.vault, msg.Width, msg.Height-4)
 		} else {
 			m.listView.SetSize(msg.Width, msg.Height-4)
+		}
+
+		// Initialize or resize detail view
+		if m.detailView == nil {
+			m.detailView = NewDetailView(nil, msg.Width, msg.Height-4)
+		} else {
+			m.detailView.SetSize(msg.Width, msg.Height-4)
 		}
 
 		// Pass window size to list view
@@ -161,7 +179,11 @@ func (m Model) View() string {
 			content = m.renderWelcome()
 		}
 	case ViewDetail:
-		content = m.renderDetail()
+		if m.detailView != nil && m.selectedSecret != nil {
+			content = m.detailView.View()
+		} else {
+			content = dimStyle.Render("No secret selected")
+		}
 	case ViewHelp:
 		content = m.renderHelp()
 	default:
@@ -178,61 +200,6 @@ func (m Model) View() string {
 	}
 
 	return content
-}
-
-// renderDetail renders the secret detail view
-func (m Model) renderDetail() string {
-	if m.selectedSecret == nil {
-		return dimStyle.Render("No secret selected")
-	}
-
-	s := m.selectedSecret
-	title := titleStyle.Render(s.Name)
-
-	var lines []string
-	lines = append(lines, title)
-	lines = append(lines, "")
-
-	if s.Description != "" {
-		lines = append(lines, subtitleStyle.Render(s.Description))
-		lines = append(lines, "")
-	}
-
-	lines = append(lines, dimStyle.Render("Value: ")+"********")
-
-	if s.Category != "" {
-		lines = append(lines, dimStyle.Render("Category: ")+s.Category)
-	}
-
-	if len(s.Tags) > 0 {
-		tags := ""
-		for i, tag := range s.Tags {
-			if i > 0 {
-				tags += ", "
-			}
-			tags += tag
-		}
-		lines = append(lines, dimStyle.Render("Tags: ")+tags)
-	}
-
-	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render(fmt.Sprintf("Created: %s", s.CreatedAt.Format("2006-01-02 15:04"))))
-	lines = append(lines, dimStyle.Render(fmt.Sprintf("Updated: %s", s.UpdatedAt.Format("2006-01-02 15:04"))))
-
-	// Check if secret is old
-	if s.IsOld(vault.DefaultAgeThreshold) {
-		lines = append(lines, "")
-		lines = append(lines, warningStyle.Render("⚠ This secret is over 1 year old"))
-	}
-
-	lines = append(lines, "")
-	lines = append(lines, helpStyle.Render("r: reveal • c: copy • esc: back • q: quit"))
-
-	result := ""
-	for _, line := range lines {
-		result += "\n" + line
-	}
-	return result
 }
 
 // renderHelp renders the help view
@@ -343,6 +310,9 @@ func (m Model) IsStatusError() bool {
 // SelectSecret sets the currently selected secret
 func (m *Model) SelectSecret(secret *vault.Secret) {
 	m.selectedSecret = secret
+	if m.detailView != nil {
+		m.detailView.SetSecret(secret)
+	}
 }
 
 // GetSelectedSecret returns the currently selected secret
@@ -363,4 +333,9 @@ func (m Model) GetHeight() int {
 // GetListView returns the list view instance
 func (m Model) GetListView() *ListView {
 	return m.listView
+}
+
+// GetDetailView returns the detail view instance
+func (m Model) GetDetailView() *DetailView {
+	return m.detailView
 }

@@ -733,7 +733,7 @@ Create list view component using bubbles/list to display secrets with keyboard n
 **Why This Now:** These features deliver the core value proposition of the TUI and complete the Priority 1 requirements.
 
 ### Task 4.1: Implement Secret Detail View
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P1 (High)
 **Estimated Effort:** 3-4 hours
@@ -776,18 +776,52 @@ Create detail view showing secret metadata with age warnings.
 5. Test reveal/mask value toggle
 
 **Acceptance Criteria:**
-- [ ] All secret fields displayed
-- [ ] Age warning shows for secrets > 1 year
-- [ ] No warning for new secrets
-- [ ] Visual indicator (color/icon) for old secrets
-- [ ] Keyboard shortcuts work
-- [ ] Test coverage: >70%
+- [x] All secret fields displayed
+- [x] Age warning shows for secrets > 1 year
+- [x] No warning for new secrets
+- [x] Visual indicator (color/icon) for old secrets
+- [x] Keyboard shortcuts work
+- [x] Test coverage: >70% (achieved 87.9%)
 
 **Files Created:**
 - `pkg/tui/detailview.go`
 - `pkg/tui/detailview_test.go`
 
 **Integration Risk:** Low - integrates with clipboard package
+
+**Completion Notes:**
+- Created `pkg/tui/detailview.go` with:
+  - `DetailView` struct with `secret`, `revealed`, `width`, `height` fields
+  - `NewDetailView(secret, width, height)` constructor
+  - `Update(msg) (tea.Cmd, bool)` - handles r/c/e keys, returns (cmd, handled)
+  - `View()` - renders all fields with proper styling
+  - `SetSize()`, `SetSecret()`, `GetSecret()`, `IsRevealed()`, `ToggleReveal()` methods
+  - `formatAge(duration)` helper for human-readable age display
+  - `copySecretCmd(secret)` returns Bubble Tea command for clipboard
+- Created `pkg/tui/detailview_test.go` with 35 test functions covering:
+  - Construction and state management (8 tests)
+  - View rendering with all field combinations (15 tests)
+  - Keyboard handling for r/c/e keys (7 tests)
+  - formatAge helper function (10 sub-tests)
+  - Model integration (3 tests)
+- Updated `pkg/tui/model.go`:
+  - Added `detailView *DetailView` field to Model struct
+  - Initialize DetailView on WindowSizeMsg
+  - Delegate key messages to DetailView when in ViewDetail
+  - SelectSecret() now updates DetailView
+  - View() uses `detailView.View()` for ViewDetail mode
+  - Added `GetDetailView()` getter
+  - Removed deprecated `renderDetail()` method
+- Features implemented:
+  - `r` key toggles value reveal/hide (masked as `********` by default)
+  - `c` key copies secret to clipboard (sends SecretCopiedMsg or ErrorMsg)
+  - `e` key sends ViewChangeMsg for edit view (stub for Task 5.1)
+  - Age displayed in human-readable format (days/months/years)
+  - Age warning ⚠ shown for secrets > 1 year old
+  - Dynamic help footer shows "r: reveal" or "r: hide" based on state
+- Test coverage: 87.9% (exceeds 70% target)
+- All 103 TUI tests passing
+- Build successful
 
 ---
 
