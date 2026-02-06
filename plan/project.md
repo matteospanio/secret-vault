@@ -1033,7 +1033,7 @@ Add visual indicators to list view for old secrets (>1 year).
 **Why This Later:** These features build on the core TUI and provide advanced organization. Can be implemented after core features are stable.
 
 ### Task 5.1: Add Category/Tag Management UI
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P2 (Medium)
 **Estimated Effort:** 4-5 hours
@@ -1078,13 +1078,13 @@ Create edit view for adding/editing secrets with category and tag fields.
 5. Test cancel handling
 
 **Acceptance Criteria:**
-- [ ] All fields editable
-- [ ] Tab navigation works
-- [ ] Tags parse correctly
-- [ ] Validation prevents empty name/value
-- [ ] Save creates/updates secret
-- [ ] Cancel discards changes
-- [ ] Test coverage: >70%
+- [x] All fields editable
+- [x] Tab navigation works
+- [x] Tags parse correctly
+- [x] Validation prevents empty name/value
+- [x] Save creates/updates secret
+- [x] Cancel discards changes
+- [x] Test coverage: >70% (achieved 83.4% overall for TUI package)
 
 **Files Created:**
 - `pkg/tui/editview.go`
@@ -1092,10 +1092,40 @@ Create edit view for adding/editing secrets with category and tag fields.
 
 **Integration Risk:** Medium - complex form handling
 
+**Completion Notes:**
+- Created `pkg/tui/editview.go` with:
+  - `EditView` struct with 5 text input fields (name, value, description, category, tags)
+  - `NewEditView(vault, secret, width, height)` constructor - nil secret for new, non-nil for edit
+  - `Update(msg)` handles Tab/Shift+Tab/Up/Down navigation, Ctrl+S save, Enter on last field saves
+  - `View()` renders form with labels, inputs, validation errors, and help footer
+  - `parseTags()` helper for comma-separated tag parsing with trimming
+  - Value field uses EchoPassword mode for masking
+  - Validation: name and value are required, error displayed on save attempt
+  - Pre-fills all fields when editing an existing secret
+- Created `pkg/tui/editview_test.go` with 15 test functions covering:
+  - New/edit secret creation
+  - Tag parsing (7 sub-tests)
+  - Tab/Shift+Tab/Up/Down navigation with wrapping
+  - Save validation (empty name, empty value)
+  - Successful save with all fields
+  - Update existing secret
+  - Rendering for new/edit/error states
+  - Enter behavior on last vs non-last field
+  - Whitespace trimming on save
+- Updated `pkg/tui/model.go`:
+  - Added `editView *EditView` field
+  - Added 'a' key handler to open edit view for new secret from list
+  - Added 'e' key from detail view opens edit with selected secret
+  - Added `SecretSavedMsg` handler that refreshes list and returns to list view
+  - Edit view key delegation with proper esc/quit handling
+  - Added `GetEditView()` getter
+- All tests passing
+- Build successful
+
 ---
 
 ### Task 5.2: Implement Filter View
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P2 (Medium)
 **Estimated Effort:** 4-5 hours
@@ -1136,18 +1166,52 @@ Create filter panel for advanced secret filtering.
 4. Test empty results handling
 
 **Acceptance Criteria:**
-- [ ] Filter panel accessible via 'f' key
-- [ ] Search, category, tag, age filters available
-- [ ] Filters apply to list view
-- [ ] Clear filters works
-- [ ] Empty results show message
-- [ ] Test coverage: >75%
+- [x] Filter panel accessible via 'f' key
+- [x] Search, category, tag, age filters available
+- [x] Filters apply to list view
+- [x] Clear filters works
+- [x] Empty results show message
+- [x] Test coverage: >75% (achieved 83.4% overall for TUI package)
 
 **Files Created:**
 - `pkg/tui/filterview.go`
 - `pkg/tui/filterview_test.go`
 
 **Integration Risk:** Medium - integrates with list view and vault filters
+
+**Completion Notes:**
+- Created `pkg/tui/filterview.go` with:
+  - `FilterCriteria` struct with Query, Category, Tag, OldOnly fields and `IsEmpty()` method
+  - `FilterView` struct with 3 text inputs (search, category, tag) and old-only toggle
+  - `NewFilterView(vault, width, height)` constructor
+  - `Update(msg)` handles Tab/Shift+Tab/Up/Down navigation, Ctrl+O toggle old, Enter apply, Ctrl+R clear
+  - `View()` renders form with inputs, old-only checkbox, active filters summary, and help footer
+  - `ApplyFilterCriteria(vault, criteria)` applies combined filters (search + category + tag + age)
+  - `ApplyToVault()` convenience method
+  - Results sorted by name for consistency
+- Created `pkg/tui/filterview_test.go` with 22 test functions covering:
+  - FilterCriteria.IsEmpty() (5 sub-tests)
+  - Tab/Shift+Tab/Down/Up navigation
+  - Ctrl+O old-only toggle
+  - Ctrl+R clear all
+  - Enter to apply filters
+  - GetCriteria with whitespace trimming
+  - ApplyFilterCriteria: no filters, by query, by category, by tag, combined, old-only, no results, sorted
+  - View rendering: basic, old-only checked, active filters
+  - SetSize, ApplyToVault
+- Updated `pkg/tui/model.go`:
+  - Added `filterView *FilterView` field
+  - Added 'f' key handler to open filter view from list
+  - Filter view key delegation with proper esc/quit handling
+  - `FilterAppliedMsg` handler: applies filters to list view via `SetFilteredItems()`, shows status
+  - `FilterClearedMsg` handler: refreshes list, shows status
+  - Added `GetFilterView()` getter
+- Updated `pkg/tui/listview.go`:
+  - Added `SetFilteredItems(secrets []vault.Secret)` method for setting pre-filtered items
+- Updated `pkg/tui/messages.go`:
+  - Added `OldOnly` field to `FilterAppliedMsg`
+- All tests passing
+- Build successful
 
 ---
 
