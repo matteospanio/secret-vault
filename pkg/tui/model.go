@@ -2,11 +2,17 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/matteospanio/secret-vault-cli/pkg/clipboard"
 	"github.com/matteospanio/secret-vault-cli/pkg/vault"
 )
+
+// joinParts joins string parts with ", "
+func joinParts(parts []string) string {
+	return strings.Join(parts, ", ")
+}
 
 // ViewType represents the current view being displayed
 type ViewType int
@@ -24,6 +30,8 @@ type Model struct {
 	vault          *vault.Vault
 	listView       *ListView
 	detailView     *DetailView
+	editView       *EditView
+	filterView     *FilterView
 	currentView    ViewType
 	previousView   ViewType
 	selectedSecret *vault.Secret
@@ -60,8 +68,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle global keys first
 		switch msg.String() {
 		case "q", "ctrl+c":
-			// Don't quit if filtering in list view
+			// Don't quit if filtering in list view or in edit view
 			if m.currentView == ViewList && m.listView != nil && m.listView.IsFiltering() {
+				break
+			}
+			if m.currentView == ViewEdit || m.currentView == ViewFilter {
 				break
 			}
 			return m, tea.Quit
@@ -85,6 +96,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			// Go back from current view
+			if m.currentView == ViewEdit {
+				m.editView = nil
+				m.GoBack()
+				return m, nil
+			}
+			if m.currentView == ViewFilter {
+				m.filterView = nil
+				m.GoBack()
+				return m, nil
+			}
 			if m.currentView != ViewList {
 				m.GoBack()
 			}
@@ -100,9 +121,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+		case "a":
+			// Add new secret (from list view)
+			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				m.editView = NewEditView(m.vault, nil, m.width, m.height-4)
+				m.SetView(ViewEdit)
+				return m, nil
+			}
+
+		case "f":
+			// Open filter view (from list view)
+			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				m.filterView = NewFilterView(m.vault, m.width, m.height-4)
+				m.SetView(ViewFilter)
+				return m, nil
+			}
+
 		case "C":
 			// Clear clipboard (global action)
 			return m, clearClipboardCmd()
+		}
+
+		// Pass key messages to filter view when in filter mode
+		if m.currentView == ViewFilter && m.filterView != nil {
+			cmd, handled := m.filterView.Update(msg)
+			if handled {
+				if cmd != nil {
+					return m, cmd
+				}
+				return m, nil
+			}
+		}
+
+		// Pass key messages to edit view when in edit mode
+		if m.currentView == ViewEdit && m.editView != nil {
+			cmd, handled := m.editView.Update(msg)
+			if handled {
+				if cmd != nil {
+					return m, cmd
+				}
+				return m, nil
+			}
 		}
 
 		// Pass key messages to list view when in list mode
@@ -147,6 +206,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case ViewChangeMsg:
+		if msg.View == ViewEdit && m.selectedSecret != nil {
+			m.editView = NewEditView(m.vault, m.selectedSecret, m.width, m.height-4)
+		}
 		m.SetView(msg.View)
 
 	case SecretSelectedMsg:
@@ -163,6 +225,52 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ClipboardClearedMsg:
 		m.SetStatus("Clipboard cleared", false)
+
+	case SecretSavedMsg:
+		m.SetStatus(fmt.Sprintf("Secret '%s' saved", msg.Name), false)
+		if m.listView != nil {
+			m.listView.Refresh()
+		}
+		m.SetView(ViewList)
+
+	case FilterAppliedMsg:
+		criteria := FilterCriteria{
+			Query:    msg.Query,
+			Category: msg.Category,
+			Tag:      msg.Tag,
+			OldOnly:  msg.OldOnly,
+		}
+		if m.listView != nil {
+			filtered := ApplyFilterCriteria(m.vault, criteria)
+			m.listView.SetFilteredItems(filtered)
+		}
+		var parts []string
+		if msg.Query != "" {
+			parts = append(parts, fmt.Sprintf("search=%q", msg.Query))
+		}
+		if msg.Category != "" {
+			parts = append(parts, fmt.Sprintf("category=%q", msg.Category))
+		}
+		if msg.Tag != "" {
+			parts = append(parts, fmt.Sprintf("tag=%q", msg.Tag))
+		}
+		if msg.OldOnly {
+			parts = append(parts, "old only")
+		}
+		if len(parts) > 0 {
+			m.SetStatus(fmt.Sprintf("Filters applied: %s", joinParts(parts)), false)
+		} else {
+			m.SetStatus("All filters cleared", false)
+		}
+		m.filterView = nil
+		m.SetView(ViewList)
+
+	case FilterClearedMsg:
+		if m.listView != nil {
+			m.listView.Refresh()
+		}
+		m.SetStatus("Filters cleared", false)
+		m.SetView(ViewList)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -188,6 +296,18 @@ func (m Model) View() string {
 			content = m.detailView.View()
 		} else {
 			content = dimStyle.Render("No secret selected")
+		}
+	case ViewEdit:
+		if m.editView != nil {
+			content = m.editView.View()
+		} else {
+			content = dimStyle.Render("No edit view available")
+		}
+	case ViewFilter:
+		if m.filterView != nil {
+			content = m.filterView.View()
+		} else {
+			content = dimStyle.Render("No filter view available")
 		}
 	case ViewHelp:
 		content = m.renderHelp()
@@ -343,6 +463,16 @@ func (m Model) GetListView() *ListView {
 // GetDetailView returns the detail view instance
 func (m Model) GetDetailView() *DetailView {
 	return m.detailView
+}
+
+// GetEditView returns the edit view instance
+func (m Model) GetEditView() *EditView {
+	return m.editView
+}
+
+// GetFilterView returns the filter view instance
+func (m Model) GetFilterView() *FilterView {
+	return m.filterView
 }
 
 // clearClipboardCmd returns a command that clears the clipboard

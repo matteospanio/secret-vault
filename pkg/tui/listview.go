@@ -182,6 +182,16 @@ func (lv *ListView) Refresh() {
 	lv.list.SetItems(items)
 }
 
+// SetFilteredItems sets the list items from a pre-filtered slice of secrets
+func (lv *ListView) SetFilteredItems(secrets []vault.Secret) {
+	items := make([]list.Item, 0, len(secrets))
+	for i := range secrets {
+		s := secrets[i]
+		items = append(items, SecretItem{secret: &s})
+	}
+	lv.list.SetItems(items)
+}
+
 // ItemCount returns the number of items in the list
 func (lv *ListView) ItemCount() int {
 	return len(lv.list.Items())

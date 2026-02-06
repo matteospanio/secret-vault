@@ -32,6 +32,7 @@ type FilterAppliedMsg struct {
 	Category string
 	Tag      string
 	Query    string
+	OldOnly  bool
 }
 
 // FilterClearedMsg is sent when filters are cleared
