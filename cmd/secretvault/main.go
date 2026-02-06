@@ -24,6 +24,10 @@ var (
 	vaultPath       string
 	password        string
 	copyToClipboard bool
+	addCategory     string
+	addTags         string
+	filterCategory  string
+	filterTag       string
 )
 
 // rootCmd represents the base command
@@ -197,6 +201,14 @@ func init() {
 	// Get command flags
 	getCmd.Flags().BoolVarP(&copyToClipboard, "copy", "c", false, "copy secret value to clipboard instead of printing")
 
+	// Add command flags
+	addCmd.Flags().StringVar(&addCategory, "category", "", "category for the secret")
+	addCmd.Flags().StringVar(&addTags, "tags", "", "comma-separated tags for the secret")
+
+	// List command flags
+	listCmd.Flags().StringVar(&filterCategory, "filter-category", "", "filter secrets by category")
+	listCmd.Flags().StringVar(&filterTag, "filter-tag", "", "filter secrets by tag")
+
 	// Add commands
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(addCmd)
@@ -361,7 +373,18 @@ func handleAdd(name string) {
 	}
 	description = strings.TrimSpace(description)
 
-	v.AddSecret(name, value, description, "", nil)
+	// Parse tags from comma-separated string
+	var tags []string
+	if addTags != "" {
+		for _, tag := range strings.Split(addTags, ",") {
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+	}
+
+	v.AddSecret(name, value, description, addCategory, tags)
 
 	err = vault.SaveVault(v, vaultPath, password)
 	if err != nil {
@@ -438,26 +461,78 @@ func handleList() {
 		os.Exit(1)
 	}
 
-	names := v.ListSecrets()
-	if len(names) == 0 {
-		fmt.Println("No secrets stored in vault")
+	// Get secrets, optionally filtered
+	var secrets []vault.Secret
+
+	if filterCategory != "" || filterTag != "" {
+		// Apply filters
+		for _, s := range v.Secrets {
+			secrets = append(secrets, s)
+		}
+		if filterCategory != "" {
+			filtered := make([]vault.Secret, 0)
+			categoryLower := strings.ToLower(filterCategory)
+			for _, s := range secrets {
+				if strings.ToLower(s.Category) == categoryLower {
+					filtered = append(filtered, s)
+				}
+			}
+			secrets = filtered
+		}
+		if filterTag != "" {
+			filtered := make([]vault.Secret, 0)
+			tagLower := strings.ToLower(filterTag)
+			for _, s := range secrets {
+				for _, t := range s.Tags {
+					if strings.ToLower(t) == tagLower {
+						filtered = append(filtered, s)
+						break
+					}
+				}
+			}
+			secrets = filtered
+		}
+	} else {
+		for _, s := range v.Secrets {
+			secrets = append(secrets, s)
+		}
+	}
+
+	if len(secrets) == 0 {
+		if filterCategory != "" || filterTag != "" {
+			fmt.Println("No secrets match the given filters")
+		} else {
+			fmt.Println("No secrets stored in vault")
+		}
 		return
 	}
 
-	sort.Strings(names)
+	// Sort by name
+	sort.Slice(secrets, func(i, j int) bool {
+		return secrets[i].Name < secrets[j].Name
+	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tDESCRIPTION\tCREATED\tUPDATED")
-	fmt.Fprintln(w, "----\t-----------\t-------\t-------")
+	fmt.Fprintln(w, "NAME\tCATEGORY\tTAGS\tDESCRIPTION\tCREATED\tUPDATED")
+	fmt.Fprintln(w, "----\t--------\t----\t-----------\t-------\t-------")
 
-	for _, name := range names {
-		secret, _ := v.GetSecret(name)
+	for _, secret := range secrets {
 		description := secret.Description
 		if description == "" {
 			description = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			name,
+		category := secret.Category
+		if category == "" {
+			category = "-"
+		}
+		tags := "-"
+		if len(secret.Tags) > 0 {
+			tags = strings.Join(secret.Tags, ", ")
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			secret.Name,
+			category,
+			tags,
 			description,
 			secret.CreatedAt.Format("2006-01-02"),
 			secret.UpdatedAt.Format("2006-01-02"),

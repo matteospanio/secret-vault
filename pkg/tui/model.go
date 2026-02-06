@@ -32,9 +32,11 @@ type Model struct {
 	detailView     *DetailView
 	editView       *EditView
 	filterView     *FilterView
+	searchBar      *SearchBar
 	currentView    ViewType
 	previousView   ViewType
 	selectedSecret *vault.Secret
+	activeFilters  *FilterCriteria
 	statusMessage  string
 	statusIsError  bool
 	width          int
@@ -72,14 +74,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.currentView == ViewList && m.listView != nil && m.listView.IsFiltering() {
 				break
 			}
+			if m.currentView == ViewList && m.searchBar != nil && m.searchBar.IsActive() {
+				break
+			}
 			if m.currentView == ViewEdit || m.currentView == ViewFilter {
 				break
 			}
 			return m, tea.Quit
 
 		case "?":
-			// Don't show help if filtering
+			// Don't show help if filtering or search bar is active
 			if m.currentView == ViewList && m.listView != nil && m.listView.IsFiltering() {
+				break
+			}
+			if m.currentView == ViewList && m.searchBar != nil && m.searchBar.IsActive() {
 				break
 			}
 			// Toggle help view
@@ -91,6 +99,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "esc":
+			// If search bar is active, deactivate it or clear it
+			if m.currentView == ViewList && m.searchBar != nil && m.searchBar.IsActive() {
+				if m.searchBar.Query() != "" {
+					m.searchBar.Clear()
+					m.applySearchFilter()
+				} else {
+					m.searchBar.Blur()
+				}
+				return m, nil
+			}
 			// If filtering, let the list handle it
 			if m.currentView == ViewList && m.listView != nil && m.listView.IsFiltering() {
 				break
@@ -112,8 +130,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "enter":
-			// Handle selection in list view
+			// Handle selection in list view (but not when search bar is active)
 			if m.currentView == ViewList && m.listView != nil && !m.listView.IsFiltering() {
+				if m.searchBar != nil && m.searchBar.IsActive() {
+					break // Let the search bar handler below deal with it
+				}
 				if secret := m.listView.SelectedSecret(); secret != nil {
 					m.SelectSecret(secret)
 					m.SetView(ViewDetail)
@@ -133,8 +154,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Open filter view (from list view)
 			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
 				m.filterView = NewFilterView(m.vault, m.width, m.height-4)
+				// Pre-fill with active filters if any
+				if m.activeFilters != nil {
+					m.filterView.SetCriteria(*m.activeFilters)
+				}
 				m.SetView(ViewFilter)
 				return m, nil
+			}
+
+		case "F":
+			// Clear all filters (from list view)
+			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				if m.activeFilters != nil && !m.activeFilters.IsEmpty() {
+					m.activeFilters = nil
+					if m.listView != nil {
+						m.listView.ClearFilters()
+					}
+					m.SetStatus("Filters cleared", false)
+				}
+				return m, nil
+			}
+
+		case "/":
+			// Focus search bar (from list view)
+			if m.currentView == ViewList && m.searchBar != nil && !m.searchBar.IsActive() {
+				if m.listView == nil || !m.listView.IsFiltering() {
+					m.searchBar.Focus()
+					return m, nil
+				}
 			}
 
 		case "C":
@@ -164,6 +211,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Pass key messages to search bar when active in list view
+		if m.currentView == ViewList && m.searchBar != nil && m.searchBar.IsActive() {
+			// Enter blurs search bar but keeps the query
+			if msg.String() == "enter" {
+				m.searchBar.Blur()
+				return m, nil
+			}
+			cmd, changed := m.searchBar.Update(msg)
+			if changed {
+				m.applySearchFilter()
+			}
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return m, tea.Batch(cmds...)
+		}
+
 		// Pass key messages to list view when in list mode
 		if m.currentView == ViewList && m.listView != nil {
 			cmd := m.listView.Update(msg)
@@ -185,11 +249,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 
-		// Initialize or resize list view
-		if m.listView == nil {
-			m.listView = NewListView(m.vault, msg.Width, msg.Height-4)
+		// Initialize or resize search bar
+		if m.searchBar == nil {
+			m.searchBar = NewSearchBar(m.vault, msg.Width)
 		} else {
-			m.listView.SetSize(msg.Width, msg.Height-4)
+			m.searchBar.SetSize(msg.Width)
+		}
+
+		// Initialize or resize list view (account for search bar height)
+		if m.listView == nil {
+			m.listView = NewListView(m.vault, msg.Width, msg.Height-6)
+		} else {
+			m.listView.SetSize(msg.Width, msg.Height-6)
 		}
 
 		// Initialize or resize detail view
@@ -229,7 +300,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SecretSavedMsg:
 		m.SetStatus(fmt.Sprintf("Secret '%s' saved", msg.Name), false)
 		if m.listView != nil {
-			m.listView.Refresh()
+			if m.activeFilters != nil && !m.activeFilters.IsEmpty() {
+				// Reapply active filters after save
+				filtered := ApplyFilterCriteria(m.vault, *m.activeFilters)
+				m.listView.SetFilteredItems(filtered)
+			} else {
+				m.listView.Refresh()
+			}
 		}
 		m.SetView(ViewList)
 
@@ -240,34 +317,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Tag:      msg.Tag,
 			OldOnly:  msg.OldOnly,
 		}
-		if m.listView != nil {
-			filtered := ApplyFilterCriteria(m.vault, criteria)
-			m.listView.SetFilteredItems(filtered)
-		}
-		var parts []string
-		if msg.Query != "" {
-			parts = append(parts, fmt.Sprintf("search=%q", msg.Query))
-		}
-		if msg.Category != "" {
-			parts = append(parts, fmt.Sprintf("category=%q", msg.Category))
-		}
-		if msg.Tag != "" {
-			parts = append(parts, fmt.Sprintf("tag=%q", msg.Tag))
-		}
-		if msg.OldOnly {
-			parts = append(parts, "old only")
-		}
-		if len(parts) > 0 {
-			m.SetStatus(fmt.Sprintf("Filters applied: %s", joinParts(parts)), false)
-		} else {
+		if criteria.IsEmpty() {
+			// Clear filters
+			m.activeFilters = nil
+			if m.listView != nil {
+				m.listView.ClearFilters()
+			}
 			m.SetStatus("All filters cleared", false)
+		} else {
+			// Store and apply filters
+			m.activeFilters = &criteria
+			if m.listView != nil {
+				filtered := ApplyFilterCriteria(m.vault, criteria)
+				m.listView.SetFilteredItems(filtered)
+				m.listView.SetActiveFilters(&criteria)
+			}
+			var parts []string
+			if msg.Query != "" {
+				parts = append(parts, fmt.Sprintf("search=%q", msg.Query))
+			}
+			if msg.Category != "" {
+				parts = append(parts, fmt.Sprintf("category=%q", msg.Category))
+			}
+			if msg.Tag != "" {
+				parts = append(parts, fmt.Sprintf("tag=%q", msg.Tag))
+			}
+			if msg.OldOnly {
+				parts = append(parts, "old only")
+			}
+			m.SetStatus(fmt.Sprintf("Filters applied: %s", joinParts(parts)), false)
 		}
 		m.filterView = nil
 		m.SetView(ViewList)
 
 	case FilterClearedMsg:
+		m.activeFilters = nil
 		if m.listView != nil {
-			m.listView.Refresh()
+			m.listView.ClearFilters()
 		}
 		m.SetStatus("Filters cleared", false)
 		m.SetView(ViewList)
@@ -287,7 +373,12 @@ func (m Model) View() string {
 	switch m.currentView {
 	case ViewList:
 		if m.listView != nil {
-			content = m.listView.View()
+			var parts []string
+			if m.searchBar != nil {
+				parts = append(parts, m.searchBar.View())
+			}
+			parts = append(parts, m.listView.View())
+			content = strings.Join(parts, "\n")
 		} else {
 			content = m.renderWelcome()
 		}
@@ -345,6 +436,7 @@ func (m Model) renderHelp() string {
 		{"r", "Reveal/hide secret value"},
 		{"/", "Search"},
 		{"f", "Filter"},
+		{"F", "Clear filters"},
 	}
 
 	var lines []string
@@ -473,6 +565,40 @@ func (m Model) GetEditView() *EditView {
 // GetFilterView returns the filter view instance
 func (m Model) GetFilterView() *FilterView {
 	return m.filterView
+}
+
+// GetActiveFilters returns the current active filter criteria
+func (m Model) GetActiveFilters() *FilterCriteria {
+	return m.activeFilters
+}
+
+// applySearchFilter filters the list based on the search bar query combined with active filters
+func (m *Model) applySearchFilter() {
+	if m.listView == nil {
+		return
+	}
+
+	// Start with all secrets or filtered secrets
+	var secrets []vault.Secret
+	if m.activeFilters != nil && !m.activeFilters.IsEmpty() {
+		secrets = ApplyFilterCriteria(m.vault, *m.activeFilters)
+	} else {
+		for _, s := range m.vault.Secrets {
+			secrets = append(secrets, s)
+		}
+	}
+
+	// Apply search bar query
+	if m.searchBar != nil && m.searchBar.Query() != "" {
+		secrets = m.searchBar.FilterSecretsByQuery(secrets)
+	}
+
+	m.listView.SetFilteredItems(secrets)
+}
+
+// GetSearchBar returns the search bar instance
+func (m Model) GetSearchBar() *SearchBar {
+	return m.searchBar
 }
 
 // clearClipboardCmd returns a command that clears the clipboard

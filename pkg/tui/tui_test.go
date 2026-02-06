@@ -583,6 +583,379 @@ func TestKeyPressClearsStatus(t *testing.T) {
 	}
 }
 
+func TestModelFilterApplied(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("work-secret", "val", "", "work", nil)
+	v.AddSecret("personal-secret", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Should store active filters
+	if m.GetActiveFilters() == nil {
+		t.Fatal("Active filters should be set after FilterAppliedMsg")
+	}
+	if m.GetActiveFilters().Category != "work" {
+		t.Errorf("Active filter category should be 'work', got %q", m.GetActiveFilters().Category)
+	}
+
+	// List should be filtered
+	if m.GetListView().ItemCount() != 1 {
+		t.Errorf("Filtered list should have 1 item, got %d", m.GetListView().ItemCount())
+	}
+}
+
+func TestModelFilterCleared(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("work-secret", "val", "", "work", nil)
+	v.AddSecret("personal-secret", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter first
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Clear filters via empty FilterAppliedMsg
+	clearMsg := FilterAppliedMsg{}
+	newModel, _ = m.Update(clearMsg)
+	m = newModel.(Model)
+
+	if m.GetActiveFilters() != nil {
+		t.Error("Active filters should be nil after clearing")
+	}
+	if m.GetListView().ItemCount() != 2 {
+		t.Errorf("List should show all 2 items after clearing, got %d", m.GetListView().ItemCount())
+	}
+}
+
+func TestModelFilterClearedMsg(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("secret-a", "val", "", "work", nil)
+	v.AddSecret("secret-b", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Set active filters
+	m.activeFilters = &FilterCriteria{Category: "work"}
+
+	// Send FilterClearedMsg
+	clearMsg := FilterClearedMsg{}
+	newModel, _ = m.Update(clearMsg)
+	m = newModel.(Model)
+
+	if m.GetActiveFilters() != nil {
+		t.Error("Active filters should be nil after FilterClearedMsg")
+	}
+}
+
+func TestModelClearFiltersKey(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("secret-a", "val", "", "work", nil)
+	v.AddSecret("secret-b", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Press 'F' to clear filters
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("F")}
+	newModel, _ = m.Update(keyMsg)
+	m = newModel.(Model)
+
+	if m.GetActiveFilters() != nil {
+		t.Error("Active filters should be nil after pressing F")
+	}
+	if !contains(m.GetStatusMessage(), "Filters cleared") {
+		t.Errorf("Status should say 'Filters cleared', got %q", m.GetStatusMessage())
+	}
+}
+
+func TestModelSearchBarInitialized(t *testing.T) {
+	v := vault.NewVault()
+	m := NewModel(v)
+
+	// Before window size, search bar is nil
+	if m.GetSearchBar() != nil {
+		t.Error("Search bar should be nil before window size")
+	}
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	if m.GetSearchBar() == nil {
+		t.Error("Search bar should be initialized after window size")
+	}
+}
+
+func TestModelSearchBarSlashKey(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("test-secret", "val", "", "", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Press '/' to focus search bar
+	slashMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")}
+	newModel, _ = m.Update(slashMsg)
+	m = newModel.(Model)
+
+	if !m.GetSearchBar().IsActive() {
+		t.Error("Search bar should be active after pressing /")
+	}
+}
+
+func TestModelSearchBarEscClear(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("test-secret", "val", "", "", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Focus search bar and type
+	m.searchBar.Focus()
+	m.searchBar.SetQuery("test")
+
+	// Press esc should clear the query first
+	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	newModel, _ = m.Update(escMsg)
+	m = newModel.(Model)
+
+	if m.GetSearchBar().Query() != "" {
+		t.Error("Search bar query should be cleared after first esc")
+	}
+
+	// Press esc again to blur (re-focus first)
+	m.searchBar.Focus()
+	newModel, _ = m.Update(escMsg)
+	m = newModel.(Model)
+
+	if m.GetSearchBar().IsActive() {
+		t.Error("Search bar should be inactive after esc with empty query")
+	}
+}
+
+func TestModelSearchBarEnterBlurs(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("test-secret", "val", "", "", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Focus search bar
+	m.searchBar.Focus()
+	m.searchBar.SetQuery("test")
+
+	// Press enter should blur search bar
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	newModel, _ = m.Update(enterMsg)
+	m = newModel.(Model)
+
+	if m.GetSearchBar().IsActive() {
+		t.Error("Search bar should be blurred after enter")
+	}
+	if m.GetSearchBar().Query() != "test" {
+		t.Error("Search bar query should be preserved after enter")
+	}
+}
+
+func TestModelSearchBarNoQuitWhenActive(t *testing.T) {
+	v := vault.NewVault()
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Focus search bar
+	m.searchBar.Focus()
+
+	// Press 'q' should not quit
+	qMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
+	_, cmd := m.Update(qMsg)
+
+	// cmd should not be tea.Quit
+	if cmd != nil {
+		msg := cmd()
+		if _, ok := msg.(tea.QuitMsg); ok {
+			t.Error("Should not quit when search bar is active")
+		}
+	}
+}
+
+func TestModelFilterPersistsAcrossViews(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("work-secret", "val", "", "work", nil)
+	v.AddSecret("personal-secret", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Go to detail view and back
+	m.SetView(ViewDetail)
+	m.GoBack()
+
+	// Active filters should persist
+	if m.GetActiveFilters() == nil {
+		t.Error("Active filters should persist across view changes")
+	}
+	if m.GetActiveFilters().Category != "work" {
+		t.Errorf("Active filter category should still be 'work', got %q", m.GetActiveFilters().Category)
+	}
+}
+
+func TestModelFilterViewPreFilled(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("work-secret", "val", "", "work", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Open filter view - should pre-fill with existing filters
+	fMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")}
+	newModel, _ = m.Update(fMsg)
+	m = newModel.(Model)
+
+	if m.GetCurrentView() != ViewFilter {
+		t.Errorf("Should be in filter view, got %v", m.GetCurrentView())
+	}
+
+	fv := m.GetFilterView()
+	if fv == nil {
+		t.Fatal("Filter view should be initialized")
+	}
+	criteria := fv.GetCriteria()
+	if criteria.Category != "work" {
+		t.Errorf("Filter view should be pre-filled with category 'work', got %q", criteria.Category)
+	}
+}
+
+func TestFilterViewSetCriteria(t *testing.T) {
+	v := vault.NewVault()
+	fv := NewFilterView(v, 80, 24)
+
+	criteria := FilterCriteria{
+		Query:    "test",
+		Category: "work",
+		Tag:      "api",
+		OldOnly:  true,
+	}
+	fv.SetCriteria(criteria)
+
+	got := fv.GetCriteria()
+	if got.Query != "test" {
+		t.Errorf("Query should be 'test', got %q", got.Query)
+	}
+	if got.Category != "work" {
+		t.Errorf("Category should be 'work', got %q", got.Category)
+	}
+	if got.Tag != "api" {
+		t.Errorf("Tag should be 'api', got %q", got.Tag)
+	}
+	if !got.OldOnly {
+		t.Error("OldOnly should be true")
+	}
+}
+
+func TestModelSecretSavedReappliesFilters(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("work-secret", "val", "", "work", nil)
+	v.AddSecret("personal-secret", "val", "", "personal", nil)
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	// Apply filter
+	filterMsg := FilterAppliedMsg{Category: "work"}
+	newModel, _ = m.Update(filterMsg)
+	m = newModel.(Model)
+
+	// Add a new secret to the vault (simulating a save)
+	v.AddSecret("new-work-secret", "val2", "", "work", nil)
+
+	// Send SecretSavedMsg
+	savedMsg := SecretSavedMsg{Name: "new-work-secret"}
+	newModel, _ = m.Update(savedMsg)
+	m = newModel.(Model)
+
+	// Should show 2 work secrets (reapplied filter)
+	if m.GetListView().ItemCount() != 2 {
+		t.Errorf("After save with active filter, should show 2 filtered items, got %d", m.GetListView().ItemCount())
+	}
+}
+
+func TestModelHelpShowsClearFilters(t *testing.T) {
+	v := vault.NewVault()
+	m := NewModel(v)
+
+	// Initialize
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	newModel, _ := m.Update(sizeMsg)
+	m = newModel.(Model)
+
+	m.SetView(ViewHelp)
+	view := m.View()
+
+	if !contains(view, "Clear filters") {
+		t.Errorf("Help view should mention Clear filters, got %q", view)
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
