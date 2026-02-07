@@ -145,14 +145,50 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			// Add new secret (from list view)
 			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				// Don't open add view if search bar is active
+				if m.searchBar != nil && m.searchBar.IsActive() {
+					break
+				}
 				m.editView = NewEditView(m.vault, nil, m.width, m.height-4)
 				m.SetView(ViewEdit)
+				return m, nil
+			}
+
+		case "d":
+			// Delete selected secret (from list view)
+			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				// Don't delete if search bar is active
+				if m.searchBar != nil && m.searchBar.IsActive() {
+					break
+				}
+				if secret := m.listView.SelectedSecret(); secret != nil {
+					err := m.vault.RemoveSecret(secret.Name)
+					if err != nil {
+						m.SetStatus(fmt.Sprintf("Error deleting secret: %v", err), true)
+					} else {
+						m.SetStatus(fmt.Sprintf("Secret '%s' deleted", secret.Name), false)
+						// Refresh list view
+						if m.listView != nil {
+							if m.activeFilters != nil && !m.activeFilters.IsEmpty() {
+								// Reapply filters after delete
+								filtered := ApplyFilterCriteria(m.vault, *m.activeFilters)
+								m.listView.SetFilteredItems(filtered)
+							} else {
+								m.listView.Refresh()
+							}
+						}
+					}
+				}
 				return m, nil
 			}
 
 		case "f":
 			// Open filter view (from list view)
 			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				// Don't open filter view if search bar is active
+				if m.searchBar != nil && m.searchBar.IsActive() {
+					break
+				}
 				m.filterView = NewFilterView(m.vault, m.width, m.height-4)
 				// Pre-fill with active filters if any
 				if m.activeFilters != nil {
@@ -165,6 +201,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "F":
 			// Clear all filters (from list view)
 			if m.currentView == ViewList && (m.listView == nil || !m.listView.IsFiltering()) {
+				// Don't clear filters if search bar is active
+				if m.searchBar != nil && m.searchBar.IsActive() {
+					break
+				}
 				if m.activeFilters != nil && !m.activeFilters.IsEmpty() {
 					m.activeFilters = nil
 					if m.listView != nil {
@@ -455,6 +495,7 @@ func (m Model) renderHelp() string {
 				{"d", "Delete selected secret"},
 				{"f", "Open advanced filter"},
 				{"F", "Clear all filters"},
+				{"C", "Clear clipboard"},
 			},
 		},
 		{

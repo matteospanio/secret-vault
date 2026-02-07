@@ -150,7 +150,17 @@ func (lv *ListView) View() string {
 	}
 
 	b.WriteString(lv.list.View())
+
+	// Add help footer
+	b.WriteString("\n")
+	b.WriteString(lv.renderHelpFooter())
+
 	return b.String()
+}
+
+// renderHelpFooter renders the help footer with available commands
+func (lv *ListView) renderHelpFooter() string {
+	return helpStyle.Render("enter: view • a: add • d: delete • f: filter • /: search • ?: help • q: quit")
 }
 
 // renderFilterHeader renders the active filter indicator
