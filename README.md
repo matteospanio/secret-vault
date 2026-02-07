@@ -1,4 +1,4 @@
-# Secret Vault CLI
+# Secret Vault
 
 A secure command-line application for storing and managing API tokens, secrets, and sensitive credentials. Keep your tokens encrypted and easily accessible from the terminal.
 
@@ -85,7 +85,7 @@ Opens an interactive terminal interface for managing secrets with keyboard short
 
 ## Terminal User Interface (TUI)
 
-Secret Vault CLI includes a powerful Terminal User Interface (TUI) built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) that provides an intuitive way to manage your secrets.
+Secret Vault includes a powerful Terminal User Interface (TUI) built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) that provides an intuitive way to manage your secrets.
 
 ### Launching the TUI
 
@@ -267,7 +267,7 @@ $ secretvault clear-clipboard
 
 ## Git Workflow Integration
 
-Secret Vault CLI integrates with Git workflows through Git hooks, providing notifications and suggestions when you interact with remote repositories.
+Secret Vault integrates with Git workflows through Git hooks, providing notifications and suggestions when you interact with remote repositories.
 
 ### Installing Git Hooks
 
@@ -290,7 +290,7 @@ When you push to a remote, you'll see:
 
 ```bash
 $ git push origin main
-🔐 Secret Vault CLI: Git hook active
+🔐 Secret Vault: Git hook active
    Remote: origin (https://github.com/user/repo.git)
    Domain detected: github.com
    Tip: Use 'secretvault get <token-name>' to retrieve tokens

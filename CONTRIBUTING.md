@@ -1,6 +1,6 @@
-# Contributing to Secret Vault CLI
+# Contributing to Secret Vault
 
-Thank you for your interest in contributing to Secret Vault CLI! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Secret Vault! This document provides guidelines and information for contributors.
 
 ## Table of Contents
 

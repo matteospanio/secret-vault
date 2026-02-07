@@ -1,4 +1,4 @@
-Secret Vault CLI is a secure command-line application for storing and managing API tokens, secrets, and sensitive credentials with AES-256-GCM encryption. The project features both a traditional CLI interface and an interactive Terminal User Interface (TUI) built with Bubble Tea.
+Secret Vault is a secure command-line application for storing and managing API tokens, secrets, and sensitive credentials with AES-256-GCM encryption. The project features both a traditional CLI interface and an interactive Terminal User Interface (TUI) built with Bubble Tea.
 
 ## Development Commands
 

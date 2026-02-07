@@ -105,7 +105,7 @@ func TestInstallHooks(t *testing.T) {
 
 	// Verify hook contains expected content
 	hookStr := string(content)
-	if !strings.Contains(hookStr, "Secret Vault CLI - Git Hook") {
+	if !strings.Contains(hookStr, "Secret Vault - Git Hook") {
 		t.Error("Hook does not contain Secret Vault marker")
 	}
 	if !strings.Contains(hookStr, "secretvault") {
@@ -224,12 +224,12 @@ func TestGeneratePrePushHook(t *testing.T) {
 		{
 			name:      "With vault path",
 			vaultPath: "/custom/vault.enc",
-			contains:  []string{"#!/bin/sh", "Secret Vault CLI", "secretvault"},
+			contains:  []string{"#!/bin/sh", "Secret Vault", "secretvault"},
 		},
 		{
 			name:      "Without vault path",
 			vaultPath: "",
-			contains:  []string{"#!/bin/sh", "Secret Vault CLI", "secretvault"},
+			contains:  []string{"#!/bin/sh", "Secret Vault", "secretvault"},
 		},
 	}
 

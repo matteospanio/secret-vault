@@ -102,21 +102,21 @@ func generatePrePushHook(vaultPath string) string {
 	}
 
 	hookContent := `#!/bin/sh
-# Secret Vault CLI - Git Hook
-# This hook integrates with Secret Vault CLI to help manage authentication
+# Secret Vault - Git Hook
+# This hook integrates with Secret Vault to help manage authentication
 
 # Get the remote name from the first argument
 remote="$1"
 url="$2"
 
-# Check if Secret Vault CLI is available
+# Check if Secret Vault is available
 if ! command -v secretvault >/dev/null 2>&1; then
     echo "Note: secretvault command not found. Skipping token check." >&2
     exit 0
 fi
 
 # Notify user that Secret Vault integration is available
-echo "🔐 Secret Vault CLI: Git hook active" >&2
+echo "🔐 Secret Vault : Git hook active" >&2
 echo "   Remote: $remote ($url)" >&2
 
 # Extract domain from URL
@@ -161,7 +161,7 @@ func UninstallHooks() error {
 	// Check if it's our hook
 	if _, err := os.Stat(prePushPath); err == nil {
 		content, err := os.ReadFile(prePushPath)
-		if err == nil && strings.Contains(string(content), "Secret Vault CLI - Git Hook") {
+		if err == nil && strings.Contains(string(content), "Secret Vault - Git Hook") {
 			// Remove the hook
 			if err := os.Remove(prePushPath); err != nil {
 				return fmt.Errorf("failed to remove hook: %w", err)
