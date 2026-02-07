@@ -286,6 +286,14 @@ func (fv *FilterView) SetSize(width, height int) {
 	}
 }
 
+// SetCriteria pre-fills the filter view with existing criteria
+func (fv *FilterView) SetCriteria(criteria FilterCriteria) {
+	fv.inputs[filterFieldSearch].SetValue(criteria.Query)
+	fv.inputs[filterFieldCategory].SetValue(criteria.Category)
+	fv.inputs[filterFieldTag].SetValue(criteria.Tag)
+	fv.oldOnly = criteria.OldOnly
+}
+
 // FocusIndex returns the currently focused field index
 func (fv *FilterView) FocusIndex() int {
 	return fv.focusIndex

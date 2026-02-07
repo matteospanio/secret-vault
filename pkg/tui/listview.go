@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -75,10 +76,11 @@ func (d secretItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 
 // ListView wraps bubbles/list for displaying secrets
 type ListView struct {
-	list   list.Model
-	vault  *vault.Vault
-	width  int
-	height int
+	list          list.Model
+	vault         *vault.Vault
+	width         int
+	height        int
+	activeFilters *FilterCriteria
 }
 
 // NewListView creates a new list view with secrets from the vault
@@ -133,9 +135,55 @@ func (lv *ListView) Update(msg tea.Msg) tea.Cmd {
 // View renders the list view
 func (lv *ListView) View() string {
 	if len(lv.list.Items()) == 0 {
+		if lv.HasActiveFilters() {
+			return lv.renderNoResults()
+		}
 		return lv.renderEmpty()
 	}
-	return lv.list.View()
+
+	var b strings.Builder
+
+	// Show active filters header
+	if lv.HasActiveFilters() {
+		b.WriteString(lv.renderFilterHeader())
+		b.WriteString("\n")
+	}
+
+	b.WriteString(lv.list.View())
+	return b.String()
+}
+
+// renderFilterHeader renders the active filter indicator
+func (lv *ListView) renderFilterHeader() string {
+	if lv.activeFilters == nil || lv.activeFilters.IsEmpty() {
+		return ""
+	}
+
+	var parts []string
+	if lv.activeFilters.Query != "" {
+		parts = append(parts, fmt.Sprintf("search=%q", lv.activeFilters.Query))
+	}
+	if lv.activeFilters.Category != "" {
+		parts = append(parts, fmt.Sprintf("category=%q", lv.activeFilters.Category))
+	}
+	if lv.activeFilters.Tag != "" {
+		parts = append(parts, fmt.Sprintf("tag=%q", lv.activeFilters.Tag))
+	}
+	if lv.activeFilters.OldOnly {
+		parts = append(parts, "old only")
+	}
+
+	return warningStyle.Render("Filters: "+strings.Join(parts, ", ")) + "  " + dimStyle.Render("(f: edit, F: clear)")
+}
+
+// renderNoResults renders the message when filters return no results
+func (lv *ListView) renderNoResults() string {
+	title := titleStyle.Render("Secret Vault")
+	filterHeader := lv.renderFilterHeader()
+	empty := dimStyle.Render("No secrets match the current filters")
+	hint := helpStyle.Render("Press F to clear filters or f to modify them")
+
+	return fmt.Sprintf("\n%s\n\n%s\n\n%s\n\n%s", title, filterHeader, empty, hint)
 }
 
 // renderEmpty renders the empty vault message
@@ -183,6 +231,7 @@ func (lv *ListView) Refresh() {
 }
 
 // SetFilteredItems sets the list items from a pre-filtered slice of secrets
+// and stores the active filter criteria for display in the header
 func (lv *ListView) SetFilteredItems(secrets []vault.Secret) {
 	items := make([]list.Item, 0, len(secrets))
 	for i := range secrets {
@@ -190,6 +239,27 @@ func (lv *ListView) SetFilteredItems(secrets []vault.Secret) {
 		items = append(items, SecretItem{secret: &s})
 	}
 	lv.list.SetItems(items)
+}
+
+// SetActiveFilters sets the active filter criteria for display in the header
+func (lv *ListView) SetActiveFilters(criteria *FilterCriteria) {
+	lv.activeFilters = criteria
+}
+
+// GetActiveFilters returns the current active filter criteria
+func (lv *ListView) GetActiveFilters() *FilterCriteria {
+	return lv.activeFilters
+}
+
+// ClearFilters resets the list to show all secrets and clears active filters
+func (lv *ListView) ClearFilters() {
+	lv.activeFilters = nil
+	lv.Refresh()
+}
+
+// HasActiveFilters returns true if there are active filters
+func (lv *ListView) HasActiveFilters() bool {
+	return lv.activeFilters != nil && !lv.activeFilters.IsEmpty()
 }
 
 // ItemCount returns the number of items in the list

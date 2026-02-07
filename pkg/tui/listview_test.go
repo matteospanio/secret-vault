@@ -376,6 +376,112 @@ func TestModelListViewNavigation(t *testing.T) {
 	}
 }
 
+func TestListViewActiveFilters(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("secret-a", "value", "", "work", nil)
+	v.AddSecret("secret-b", "value", "", "personal", nil)
+
+	lv := NewListView(v, 80, 24)
+
+	// Initially no active filters
+	if lv.HasActiveFilters() {
+		t.Error("Initially should have no active filters")
+	}
+	if lv.GetActiveFilters() != nil {
+		t.Error("GetActiveFilters should return nil initially")
+	}
+
+	// Set active filters
+	criteria := &FilterCriteria{Category: "work"}
+	lv.SetActiveFilters(criteria)
+
+	if !lv.HasActiveFilters() {
+		t.Error("Should have active filters after SetActiveFilters")
+	}
+	if lv.GetActiveFilters() != criteria {
+		t.Error("GetActiveFilters should return the set criteria")
+	}
+
+	// Clear filters
+	lv.ClearFilters()
+	if lv.HasActiveFilters() {
+		t.Error("Should not have active filters after ClearFilters")
+	}
+	// After clear, list should be refreshed with all secrets
+	if lv.ItemCount() != 2 {
+		t.Errorf("After ClearFilters, should have all 2 items, got %d", lv.ItemCount())
+	}
+}
+
+func TestListViewFilterHeader(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("secret-a", "value", "", "work", []string{"api"})
+
+	lv := NewListView(v, 80, 24)
+
+	// No filter header without active filters
+	header := lv.renderFilterHeader()
+	if header != "" {
+		t.Error("Should have no header without active filters")
+	}
+
+	// Set filters and check header
+	criteria := &FilterCriteria{Category: "work", Tag: "api"}
+	lv.SetActiveFilters(criteria)
+
+	header = lv.renderFilterHeader()
+	if !contains(header, "work") {
+		t.Errorf("Header should contain category, got %q", header)
+	}
+	if !contains(header, "api") {
+		t.Errorf("Header should contain tag, got %q", header)
+	}
+}
+
+func TestListViewNoResultsWithFilters(t *testing.T) {
+	v := vault.NewVault()
+	lv := NewListView(v, 80, 24)
+
+	// Set active filters
+	criteria := &FilterCriteria{Category: "nonexistent"}
+	lv.SetActiveFilters(criteria)
+
+	// With active filters and no items, should show "no results" message
+	view := lv.View()
+	if !contains(view, "No secrets match the current filters") {
+		t.Errorf("Should show no results message, got %q", view)
+	}
+}
+
+func TestListViewFilteredItemsWithHeader(t *testing.T) {
+	v := vault.NewVault()
+	v.AddSecret("secret-a", "value", "", "work", nil)
+	v.AddSecret("secret-b", "value", "", "personal", nil)
+
+	lv := NewListView(v, 80, 24)
+
+	// Set filtered items and active filters
+	filtered := []vault.Secret{{Name: "secret-a", Value: "value", Category: "work"}}
+	lv.SetFilteredItems(filtered)
+	lv.SetActiveFilters(&FilterCriteria{Category: "work"})
+
+	view := lv.View()
+	if !contains(view, "work") {
+		t.Errorf("Filtered view should show filter header with 'work', got %q", view)
+	}
+}
+
+func TestListViewHasActiveFiltersWithEmptyCriteria(t *testing.T) {
+	v := vault.NewVault()
+	lv := NewListView(v, 80, 24)
+
+	// Set empty criteria
+	lv.SetActiveFilters(&FilterCriteria{})
+	if lv.HasActiveFilters() {
+		t.Error("HasActiveFilters should return false for empty criteria")
+	}
+}
+
 func TestModelEmptyListEnter(t *testing.T) {
 	v := vault.NewVault()
 	m := NewModel(v)
