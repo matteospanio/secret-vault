@@ -19,6 +19,7 @@ A secure command-line application for storing and managing API tokens, secrets, 
 - ⚠️ **Aging Warnings**: Visual indicators for secrets older than 1 year
 - 📋 **Clipboard Integration**: Copy secrets directly to clipboard with one keystroke
 - 🔍 **Smart Search**: Fuzzy search and advanced filtering capabilities
+- 📤 **Import/Export**: Backup and migrate secrets using JSON or YAML formats with `jq`/`yq` integration
 
 ## Installation
 
@@ -264,6 +265,52 @@ Enter master password:
 $ secretvault clear-clipboard
 ✓ Clipboard cleared
 ```
+
+## Import/Export
+
+Secret Vault supports exporting and importing secrets in **JSON** and **YAML** formats for backups, migrations, and integration with external tools.
+
+### Export Secrets
+
+**Export metadata only (safe for documentation):**
+```bash
+secretvault export -f json
+secretvault export -f yaml
+```
+
+**Export with values (for backup/migration):**
+```bash
+secretvault export --include-values -o backup.json
+secretvault export --include-values -f yaml -o backup.yaml
+```
+
+### Import Secrets
+
+**Import from file:**
+```bash
+secretvault import backup.json              # Skip existing secrets
+secretvault import backup.json -m overwrite  # Overwrite all
+secretvault import backup.yaml -m merge      # Smart merge (keep newer)
+```
+
+### Integration with jq and yq
+
+**Filter secrets using jq:**
+```bash
+# Get all API secrets
+secretvault export | jq '.secrets[] | select(.category == "api")'
+
+# Get secrets with production tag
+secretvault export | jq '.secrets[] | select(.tags[] | contains("production"))'
+```
+
+**Filter secrets using yq:**
+```bash
+# Get cloud secrets
+secretvault export -f yaml | yq '.secrets[] | select(.category == "cloud")'
+```
+
+See [IMPORT_EXPORT.md](IMPORT_EXPORT.md) for detailed documentation and examples.
 
 ## Git Workflow Integration
 

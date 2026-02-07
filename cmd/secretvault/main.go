@@ -11,7 +11,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/matteospanio/secret-vault/pkg/clipboard"
+	"github.com/matteospanio/secret-vault/pkg/exporter"
 	"github.com/matteospanio/secret-vault/pkg/git"
+	"github.com/matteospanio/secret-vault/pkg/importer"
 	"github.com/matteospanio/secret-vault/pkg/sync"
 	"github.com/matteospanio/secret-vault/pkg/tui"
 	"github.com/matteospanio/secret-vault/pkg/vault"
@@ -28,6 +30,11 @@ var (
 	addTags         string
 	filterCategory  string
 	filterTag       string
+	exportFormat    string
+	exportOutput    string
+	exportInclude   bool
+	importFormat    string
+	importMode      string
 )
 
 // rootCmd represents the base command
@@ -187,6 +194,29 @@ var tuiCmd = &cobra.Command{
 	},
 }
 
+// exportCmd represents the export command
+var exportCmd = &cobra.Command{
+	Use:   "export",
+	Short: "Export secrets to JSON or YAML",
+	Long: `Export vault secrets to JSON or YAML format for backup or integration with other tools.
+By default, only exports metadata (no secret values). Use --include-values to export values.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		handleExport()
+	},
+}
+
+// importCmd represents the import command
+var importCmd = &cobra.Command{
+	Use:   "import <file>",
+	Short: "Import secrets from JSON or YAML",
+	Long: `Import secrets from a JSON or YAML file into the vault.
+Supports different modes for handling existing secrets: skip, overwrite, or merge.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		handleImport(args[0])
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -209,12 +239,23 @@ func init() {
 	listCmd.Flags().StringVar(&filterCategory, "filter-category", "", "filter secrets by category")
 	listCmd.Flags().StringVar(&filterTag, "filter-tag", "", "filter secrets by tag")
 
+	// Export command flags
+	exportCmd.Flags().StringVarP(&exportFormat, "format", "f", "json", "export format (json, yaml)")
+	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "output file (default: stdout)")
+	exportCmd.Flags().BoolVar(&exportInclude, "include-values", false, "include secret values in export (requires confirmation)")
+
+	// Import command flags
+	importCmd.Flags().StringVarP(&importFormat, "format", "f", "", "import format (json, yaml) - auto-detected if not specified")
+	importCmd.Flags().StringVarP(&importMode, "mode", "m", "skip", "import mode: skip, overwrite, or merge")
+
 	// Add commands
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)
+	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(gitCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(clearClipboardCmd)
@@ -993,6 +1034,179 @@ func handleTUI() {
 		if err != nil {
 			fmt.Printf("Error saving vault: %v\n", err)
 			os.Exit(1)
+		}
+	}
+}
+
+func handleExport() {
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	password, err := getPassword("Enter master password: ")
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+
+	v, err := vault.LoadVault(vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Parse export format
+	format, err := exporter.ParseFormat(exportFormat)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Security confirmation for exporting values
+	includeValues := exportInclude
+	if includeValues {
+		fmt.Println("⚠️  WARNING: You are about to export secret VALUES in plain text.")
+		fmt.Print("Are you sure you want to continue? (yes/no): ")
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "yes" && response != "y" {
+			fmt.Println("Export cancelled")
+			os.Exit(0)
+		}
+	}
+
+	// Export vault
+	opts := exporter.ExportOptions{
+		Format:        format,
+		IncludeValues: includeValues,
+		PrettyPrint:   true,
+	}
+
+	data, err := exporter.Export(v, opts)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Write output
+	if exportOutput != "" {
+		err = os.WriteFile(exportOutput, data, 0600)
+		if err != nil {
+			fmt.Printf("Error: failed to write file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Exported %d secrets to %s\n", len(v.Secrets), exportOutput)
+		if !includeValues {
+			fmt.Println("  (metadata only - use --include-values to export secret values)")
+		}
+	} else {
+		// Write to stdout
+		fmt.Println(string(data))
+	}
+}
+
+func handleImport(filename string) {
+	vaultPath, err := getVaultPath()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !vault.VaultExists(vaultPath) {
+		fmt.Println("Error: vault not initialized. Run 'secretvault init' first")
+		os.Exit(1)
+	}
+
+	password, err := getPassword("Enter master password: ")
+	if err != nil {
+		fmt.Println("Error: failed to read password")
+		os.Exit(1)
+	}
+
+	v, err := vault.LoadVault(vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Read import file
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Printf("Error: failed to read file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Auto-detect format if not specified
+	format := importFormat
+	if format == "" {
+		// Auto-detect based on file extension
+		if strings.HasSuffix(filename, ".json") {
+			format = "json"
+		} else if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
+			format = "yaml"
+		} else {
+			fmt.Println("Error: cannot auto-detect format. Please specify --format (json or yaml)")
+			os.Exit(1)
+		}
+	}
+
+	parsedFormat, err := exporter.ParseFormat(format)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate import data first
+	err = importer.ValidateImportData(data, parsedFormat)
+	if err != nil {
+		fmt.Printf("Error: invalid import data: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Parse import mode
+	mode, err := importer.ParseMode(importMode)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Import secrets
+	opts := importer.ImportOptions{
+		Mode:   mode,
+		Format: parsedFormat,
+	}
+
+	result, err := importer.Import(v, data, opts)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Save vault
+	err = vault.SaveVault(v, vaultPath, password)
+	if err != nil {
+		fmt.Printf("Error: failed to save vault: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Display results
+	fmt.Printf("✓ Import completed from %s\n", filename)
+	fmt.Printf("  Imported: %d new secrets\n", result.Imported)
+	fmt.Printf("  Updated:  %d existing secrets\n", result.Updated)
+	fmt.Printf("  Skipped:  %d secrets\n", result.Skipped)
+
+	if len(result.Errors) > 0 {
+		fmt.Printf("  Errors:   %d\n", len(result.Errors))
+		for _, errMsg := range result.Errors {
+			fmt.Printf("    - %s\n", errMsg)
 		}
 	}
 }
