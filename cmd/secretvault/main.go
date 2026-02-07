@@ -981,8 +981,18 @@ func handleTUI() {
 
 	// Launch TUI
 	p := tea.NewProgram(tui.NewModel(v))
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error running TUI: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Save vault after TUI exits to persist any changes
+	if m, ok := finalModel.(tui.Model); ok {
+		err = vault.SaveVault(m.GetVault(), vaultPath, password)
+		if err != nil {
+			fmt.Printf("Error saving vault: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
