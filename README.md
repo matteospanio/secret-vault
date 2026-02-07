@@ -6,6 +6,7 @@ A secure command-line application for storing and managing API tokens, secrets, 
 
 - 🔒 **AES-256-GCM Encryption**: Military-grade encryption for your secrets
 - 🔑 **Password-Based Protection**: Master password secures all stored secrets
+- 🖥️ **Interactive TUI**: Beautiful terminal user interface with keyboard shortcuts
 - 📦 **Simple CLI Interface**: Built with Cobra for robust command parsing
 - 💾 **Portable Vault**: Encrypted vault file can be synced across machines
 - ☁️ **Cloud Sync**: Built-in Nextcloud/WebDAV sync with conflict detection and resolution
@@ -14,6 +15,10 @@ A secure command-line application for storing and managing API tokens, secrets, 
 - 🔧 **Flexible Configuration**: Support for flags, environment variables, and config files via Viper
 - 🚀 **Shell Completion**: Auto-completion support for bash, zsh, fish, and PowerShell
 - 🔗 **Git Integration**: Seamless Git workflow integration via hooks with domain-based token suggestions
+- 🏷️ **Categories & Tags**: Organize secrets with categories and tags for easy filtering
+- ⚠️ **Aging Warnings**: Visual indicators for secrets older than 1 year
+- 📋 **Clipboard Integration**: Copy secrets directly to clipboard with one keystroke
+- 🔍 **Smart Search**: Fuzzy search and advanced filtering capabilities
 
 ## Installation
 
@@ -70,12 +75,132 @@ secretvault remove github-token
 
 Permanently deletes the secret from your vault.
 
+### 6. Launch TUI (Terminal User Interface)
+
+```bash
+secretvault tui
+```
+
+Opens an interactive terminal interface for managing secrets with keyboard shortcuts, categories, tags, and visual organization.
+
+## Terminal User Interface (TUI)
+
+Secret Vault CLI includes a powerful Terminal User Interface (TUI) built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) that provides an intuitive way to manage your secrets.
+
+### Launching the TUI
+
+```bash
+secretvault tui
+```
+
+You'll be prompted for your master password, then enter the interactive interface.
+
+### TUI Features
+
+- **List View**: Browse all secrets with search and filtering
+- **Detail View**: View secret metadata with age warnings
+- **Edit View**: Add or modify secrets with categories and tags
+- **Filter View**: Advanced multi-criteria filtering
+- **Real-time Search**: Fuzzy search as you type
+- **Clipboard Integration**: Copy secrets with one keystroke
+- **Aging Warnings**: Visual indicators (⚠) for secrets older than 1 year
+
+### Keyboard Shortcuts
+
+#### Global (All Views)
+- `?` - Toggle help view
+- `q` - Quit application
+- `esc` - Go back / Cancel
+
+#### List View
+- `↑/↓` - Navigate secrets
+- `enter` - View secret details
+- `/` - Quick search (built-in filtering)
+- `a` - Add new secret
+- `d` - Delete selected secret
+- `f` - Open advanced filter
+- `F` - Clear all filters
+- `C` - Clear clipboard
+
+#### Detail View
+- `r` - Reveal/hide secret value
+- `c` - Copy secret to clipboard
+- `C` - Clear clipboard
+- `e` - Edit secret
+- `esc` - Return to list
+
+#### Edit View
+- `tab`/`↓` - Next field
+- `shift+tab`/`↑` - Previous field
+- `ctrl+s` - Save secret
+- `enter` - Save (on last field)
+- `esc` - Cancel without saving
+
+#### Filter View
+- `tab`/`↓` - Next field
+- `shift+tab`/`↑` - Previous field
+- `ctrl+o` - Toggle 'old secrets only'
+- `enter` - Apply filters
+- `ctrl+r` - Clear all filters
+- `esc` - Cancel without applying
+
+### TUI Workflow Examples
+
+#### Adding a Secret with Categories and Tags
+
+1. Launch TUI: `secretvault tui`
+2. Press `a` to add a new secret
+3. Fill in the form:
+   - Name: `github-token`
+   - Value: (your token - masked)
+   - Description: `GitHub PAT for CLI access`
+   - Category: `work`
+   - Tags: `github,api,development`
+4. Press `ctrl+s` to save
+
+#### Filtering Secrets
+
+1. In list view, press `f` to open filter view
+2. Enter filter criteria:
+   - Search query: (optional text search)
+   - Category: `work`
+   - Tag: `api`
+   - Toggle `ctrl+o` for old secrets only
+3. Press `enter` to apply filters
+4. Press `F` to clear all filters
+
+#### Copying a Secret
+
+1. Navigate to a secret with `↑/↓`
+2. Press `enter` to view details
+3. Press `c` to copy to clipboard
+4. Use secret in another application
+5. Press `C` to clear clipboard when done
+
+#### Search and Quick Access
+
+1. In list view, press `/` to activate quick search
+2. Start typing to filter secrets in real-time
+3. Use `↑/↓` to navigate filtered results
+4. Press `esc` to clear search
+5. Press `enter` on a secret to view details
+
 ## Usage Examples
 
 ### Store a GitHub Personal Access Token
 
 ```bash
 $ secretvault add github-token
+Enter master password:
+Enter secret value:
+Enter description (optional): GitHub PAT for CLI access
+✓ Secret 'github-token' added successfully
+```
+
+### Store a Secret with Categories and Tags
+
+```bash
+$ secretvault add github-token --category "work" --tags "github,api,development"
 Enter master password:
 Enter secret value:
 Enter description (optional): GitHub PAT for CLI access
@@ -109,6 +234,35 @@ NAME            DESCRIPTION              CREATED     UPDATED
 github-token    GitHub PAT for CLI      2025-01-15  2025-01-15
 npm-token       NPM publish token       2025-01-15  2025-01-15
 pypi-token      PyPI upload token       2025-01-15  2025-01-15
+```
+
+### Filter Secrets by Category or Tag
+
+```bash
+# List secrets in "work" category
+$ secretvault list --filter-category "work"
+
+# List secrets with "api" tag
+$ secretvault list --filter-tag "api"
+
+# List old secrets (older than 1 year)
+$ secretvault list --old-only
+
+# Combine filters
+$ secretvault list --filter-category "work" --filter-tag "github"
+```
+
+### Copy Secret to Clipboard
+
+```bash
+# Copy secret value directly to clipboard
+$ secretvault get github-token --copy
+Enter master password:
+✓ Secret copied to clipboard
+
+# Clear clipboard when done
+$ secretvault clear-clipboard
+✓ Clipboard cleared
 ```
 
 ## Git Workflow Integration
@@ -335,6 +489,9 @@ secret-vault-cli/
 │   └── secretvault/      # Main CLI application
 │       └── main.go
 ├── pkg/
+│   ├── clipboard/        # Cross-platform clipboard operations
+│   │   ├── clipboard.go
+│   │   └── clipboard_test.go
 │   ├── crypto/           # Encryption/decryption logic
 │   │   ├── crypto.go
 │   │   └── crypto_test.go
@@ -349,6 +506,18 @@ secret-vault-cli/
 │   │   ├── metadata.go   # Version tracking and checksums
 │   │   ├── metadata_test.go
 │   │   └── manager.go    # Sync orchestration
+│   ├── tui/              # Terminal User Interface
+│   │   ├── model.go      # Main TUI state machine
+│   │   ├── listview.go   # Secret list with navigation
+│   │   ├── detailview.go # Secret detail display
+│   │   ├── editview.go   # Secret creation/editing
+│   │   ├── filterview.go # Advanced filtering
+│   │   ├── inputview.go  # Input with autocomplete
+│   │   ├── searchbar.go  # Quick search component
+│   │   ├── autocomplete.go # Fuzzy matching logic
+│   │   ├── styles.go     # UI styling
+│   │   ├── messages.go   # Bubble Tea messages
+│   │   └── *_test.go     # Comprehensive test suite
 │   └── vault/            # Vault data structure and storage
 │       ├── vault.go
 │       ├── storage.go
@@ -360,14 +529,20 @@ secret-vault-cli/
 
 ### Core Components
 
-1. **Vault Package**: Manages secret storage and retrieval
+1. **Vault Package**: Manages secret storage and retrieval with support for categories, tags, and filtering
 2. **Crypto Package**: Handles AES-256-GCM encryption/decryption
-3. **Sync Package**: Modular cloud sync with provider abstraction
+3. **TUI Package**: Interactive terminal user interface built with [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+   - **Model**: Main state machine coordinating all views
+   - **Views**: List, Detail, Edit, Filter, and Help views
+   - **Components**: Search bar, autocomplete, and input handling
+   - **Styling**: Consistent theming with [Lipgloss](https://github.com/charmbracelet/lipgloss)
+4. **Clipboard Package**: Cross-platform clipboard operations using [atotto/clipboard](https://github.com/atotto/clipboard)
+5. **Sync Package**: Modular cloud sync with provider abstraction
    - **SyncProvider Interface**: Extensible design for multiple cloud providers
    - **NextcloudProvider**: WebDAV-based sync for Nextcloud/ownCloud
    - **Metadata System**: Checksum verification and conflict detection
-4. **Git Package**: Git workflow integration with hooks
-5. **CLI**: Built with [Cobra](https://github.com/spf13/cobra) for robust command structure and [Viper](https://github.com/spf13/viper) for flexible configuration management
+6. **Git Package**: Git workflow integration with hooks
+7. **CLI**: Built with [Cobra](https://github.com/spf13/cobra) for robust command structure and [Viper](https://github.com/spf13/viper) for flexible configuration management
 
 ## Development
 
@@ -386,6 +561,52 @@ go build -o secretvault ./cmd/secretvault
 ### Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## Troubleshooting
+
+### TUI Issues
+
+**TUI doesn't display correctly**
+- Ensure your terminal supports 256 colors
+- Try setting `TERM=xterm-256color`
+- Minimum terminal size: 80x24
+
+**Clipboard not working**
+- **Linux**: Install `xclip` or `xsel` (`sudo apt install xclip`)
+- **macOS**: Clipboard works natively
+- **Windows**: Clipboard works natively
+- For headless systems, clipboard functionality will be unavailable
+
+**Secrets not filtering**
+- Press `F` to clear all active filters
+- Check that you're not in search mode (press `esc` to exit)
+- Verify filter criteria in filter view (`f` key)
+
+### CLI Issues
+
+**"vault not initialized" error**
+- Run `secretvault init` to create a new vault
+- Or specify vault path: `secretvault --vault-path /path/to/vault.enc list`
+
+**Permission denied errors**
+- Vault file should have 0600 permissions (owner read/write only)
+- Check vault directory permissions: `ls -la ~/.secret-vault/`
+
+**Sync conflicts**
+- Use `secretvault sync status` to check sync state
+- Pull latest changes: `secretvault sync pull`
+- Or force push: `secretvault sync push --force` (overwrites remote)
+
+### Performance
+
+**TUI slow with many secrets**
+- The TUI uses virtual scrolling and should handle thousands of secrets
+- If experiencing issues, report with vault size in GitHub issues
+
+**Build from source fails**
+- Ensure Go 1.21 or higher: `go version`
+- Clear module cache: `go clean -modcache`
+- Rebuild: `go build -o secretvault ./cmd/secretvault`
 
 ## License
 

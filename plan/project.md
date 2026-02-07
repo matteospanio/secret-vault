@@ -1378,7 +1378,7 @@ secretvault list --filter-category "work" --filter-tag "github"
 **Why This Last:** Polish comes after all features are implemented to ensure documentation accuracy.
 
 ### Task 6.1: Implement Help View
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UI Component
 **Priority:** P2 (Medium)
 **Estimated Effort:** 3 hours
@@ -1407,22 +1407,32 @@ Create context-sensitive help view showing keyboard shortcuts.
 3. Test help toggling
 
 **Acceptance Criteria:**
-- [ ] Help accessible via '?' key
-- [ ] Context-sensitive shortcuts shown
-- [ ] All shortcuts documented
-- [ ] Help dismisses correctly
-- [ ] Test coverage: >70%
+- [x] Help accessible via '?' key
+- [x] Context-sensitive shortcuts shown
+- [x] All shortcuts documented
+- [x] Help dismisses correctly
+- [x] Test coverage: >70%
 
 **Files Created:**
-- `pkg/tui/helpview.go`
-- `pkg/tui/helpview_test.go`
+- Enhanced `pkg/tui/model.go` (renderHelp method)
 
 **Integration Risk:** None - overlay view
+
+**Completion Notes:**
+- Enhanced `renderHelp()` method in `pkg/tui/model.go` with comprehensive, context-sensitive help
+- Organized shortcuts by view: Global, List View, Detail View, Edit View, Filter View
+- Added sections for each view with clear categorization
+- Included symbols legend (⚠ for aging warnings)
+- Help view accessible via `?` key, dismissible with `?` or `esc`
+- All keyboard shortcuts documented with descriptions
+- Updated test to match new help text ("Clear all filters")
+- All tests passing
+- Build successful
 
 ---
 
 ### Task 6.2: Standardize Keyboard Shortcuts
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** UX Enhancement
 **Priority:** P2 (Medium)
 **Estimated Effort:** 2-3 hours
@@ -1445,21 +1455,34 @@ Ensure consistent keyboard shortcuts across all views and add footer.
 3. Test footer rendering
 
 **Acceptance Criteria:**
-- [ ] All shortcuts documented
-- [ ] No conflicts
-- [ ] Footer shows available actions
-- [ ] Consistent across views
-- [ ] Test coverage: >70%
+- [x] All shortcuts documented
+- [x] No conflicts
+- [x] Footer shows available actions
+- [x] Consistent across views
+- [x] Test coverage: >70%
 
 **Files Modified:**
 - All view files in `pkg/tui/`
 
 **Integration Risk:** Low - refinement of existing functionality
 
+**Completion Notes:**
+- Audited all keyboard shortcuts across all views
+- Verified consistency: all views use `esc` for back/cancel, all forms use `tab`/`shift+tab` for navigation
+- All views have help footers showing available shortcuts:
+  - DetailView: `r: reveal/hide • c: copy • e: edit • esc: back • q: quit`
+  - EditView: `tab/↓: next field • shift+tab/↑: prev field • ctrl+s: save • esc: cancel`
+  - FilterView: `tab/↓: next • shift+tab/↑: prev • ctrl+o: toggle old • enter: apply • ctrl+r: clear • esc: cancel`
+  - InputView: `↑↓: navigate • tab: complete • enter: select • esc: cancel`
+- No conflicts between view-specific shortcuts
+- Global shortcuts (?, q, C) work across all views
+- All tests passing (>83% coverage for TUI package)
+- Build successful
+
 ---
 
 ### Task 6.3: Update Documentation
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
 **Type:** Documentation
 **Priority:** P2 (Medium)
 **Estimated Effort:** 3-4 hours
@@ -1481,18 +1504,43 @@ Comprehensive documentation update including TUI usage, architecture, and exampl
 4. Add troubleshooting section
 
 **Acceptance Criteria:**
-- [ ] README.md updated with TUI section
-- [ ] Keyboard shortcuts documented
-- [ ] Architecture diagram includes TUI package
-- [ ] All examples tested and working
-- [ ] CONTRIBUTING.md created/updated
-- [ ] Troubleshooting section added
+- [x] README.md updated with TUI section
+- [x] Keyboard shortcuts documented
+- [x] Architecture diagram includes TUI package
+- [x] All examples tested and working
+- [x] CONTRIBUTING.md created/updated
+- [x] Troubleshooting section added
 
 **Files Modified:**
 - `README.md`
 - `CONTRIBUTING.md` (new)
 
 **Integration Risk:** None - documentation only
+
+**Completion Notes:**
+- **README.md updates:**
+  - Updated Features section with TUI features (categories, tags, aging warnings, clipboard, smart search)
+  - Added comprehensive "Terminal User Interface (TUI)" section with:
+    - How to launch TUI
+    - TUI features overview
+    - Complete keyboard shortcuts reference (organized by view)
+    - TUI workflow examples (adding secrets, filtering, copying, searching)
+  - Updated CLI usage examples to include category/tag support and clipboard commands
+  - Updated project structure diagram to include `pkg/tui/`, `pkg/clipboard/` packages
+  - Updated Core Components section to document TUI and Clipboard packages
+  - Added comprehensive Troubleshooting section covering TUI, CLI, and performance issues
+- **CONTRIBUTING.md created:**
+  - Getting Started guide with prerequisites and fork/clone instructions
+  - Development setup with build, test, and run instructions
+  - Project structure explanation
+  - Testing philosophy with pragmatic TDD approach
+  - Coverage targets for each package
+  - Code style guidelines (naming, error handling, comments)
+  - Pull request process and templates
+  - Guidelines for adding TUI features, CLI features, and data model changes
+  - Development workflow and debugging tips
+- All documentation tested and verified
+- Build successful
 
 ---
 

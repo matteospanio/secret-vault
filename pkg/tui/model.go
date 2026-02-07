@@ -418,33 +418,106 @@ func (m Model) View() string {
 	return content
 }
 
-// renderHelp renders the help view
+// renderHelp renders the help view with context-sensitive keyboard shortcuts
 func (m Model) renderHelp() string {
 	title := titleStyle.Render("Keyboard Shortcuts")
 
-	shortcuts := []struct {
-		key  string
-		desc string
-	}{
-		{"?", "Toggle this help"},
-		{"q", "Quit"},
-		{"esc", "Go back"},
-		{"↑/↓", "Navigate list"},
-		{"enter", "Select item"},
-		{"c", "Copy secret to clipboard"},
-		{"C", "Clear clipboard"},
-		{"r", "Reveal/hide secret value"},
-		{"/", "Search"},
-		{"f", "Filter"},
-		{"F", "Clear filters"},
+	type shortcutSection struct {
+		title     string
+		shortcuts []struct {
+			key  string
+			desc string
+		}
+	}
+
+	sections := []shortcutSection{
+		{
+			title: "Global",
+			shortcuts: []struct {
+				key  string
+				desc string
+			}{
+				{"?", "Toggle this help"},
+				{"q", "Quit application"},
+				{"esc", "Go back / Cancel"},
+			},
+		},
+		{
+			title: "List View",
+			shortcuts: []struct {
+				key  string
+				desc string
+			}{
+				{"↑/↓", "Navigate secrets"},
+				{"enter", "View secret details"},
+				{"/", "Quick search (built-in filtering)"},
+				{"a", "Add new secret"},
+				{"d", "Delete selected secret"},
+				{"f", "Open advanced filter"},
+				{"F", "Clear all filters"},
+			},
+		},
+		{
+			title: "Detail View",
+			shortcuts: []struct {
+				key  string
+				desc string
+			}{
+				{"r", "Reveal/hide secret value"},
+				{"c", "Copy secret to clipboard"},
+				{"C", "Clear clipboard"},
+				{"e", "Edit secret"},
+				{"esc", "Return to list"},
+			},
+		},
+		{
+			title: "Edit View",
+			shortcuts: []struct {
+				key  string
+				desc string
+			}{
+				{"tab/↓", "Next field"},
+				{"shift+tab/↑", "Previous field"},
+				{"ctrl+s", "Save secret"},
+				{"enter", "Save (on last field)"},
+				{"esc", "Cancel without saving"},
+			},
+		},
+		{
+			title: "Filter View",
+			shortcuts: []struct {
+				key  string
+				desc string
+			}{
+				{"tab/↓", "Next field"},
+				{"shift+tab/↑", "Previous field"},
+				{"ctrl+o", "Toggle 'old secrets only'"},
+				{"enter", "Apply filters"},
+				{"ctrl+r", "Clear all filters"},
+				{"esc", "Cancel without applying"},
+			},
+		},
 	}
 
 	var lines []string
 	lines = append(lines, "", title, "")
 
-	for _, s := range shortcuts {
-		lines = append(lines, fmt.Sprintf("  %s  %s", dimStyle.Render(fmt.Sprintf("%6s", s.key)), s.desc))
+	// Render each section
+	for i, section := range sections {
+		if i > 0 {
+			lines = append(lines, "") // Blank line between sections
+		}
+		lines = append(lines, "  "+subtitleStyle.Render(section.title))
+		for _, s := range section.shortcuts {
+			lines = append(lines, fmt.Sprintf("    %s  %s",
+				dimStyle.Render(fmt.Sprintf("%-12s", s.key)), s.desc))
+		}
 	}
+
+	// Add legend for symbols
+	lines = append(lines, "", "  "+subtitleStyle.Render("Symbols"))
+	lines = append(lines, fmt.Sprintf("    %s  Secret older than 1 year",
+		dimStyle.Render(fmt.Sprintf("%-12s", "⚠"))))
 
 	lines = append(lines, "", helpStyle.Render("Press ? or esc to close"))
 

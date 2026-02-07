@@ -951,8 +951,8 @@ func TestModelHelpShowsClearFilters(t *testing.T) {
 	m.SetView(ViewHelp)
 	view := m.View()
 
-	if !contains(view, "Clear filters") {
-		t.Errorf("Help view should mention Clear filters, got %q", view)
+	if !contains(view, "Clear all filters") {
+		t.Errorf("Help view should mention Clear all filters, got %q", view)
 	}
 }
 
