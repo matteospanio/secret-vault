@@ -1202,7 +1202,7 @@ func handleImport(filename string) {
 	fmt.Printf("  Imported: %d new secrets\n", result.Imported)
 	fmt.Printf("  Updated:  %d existing secrets\n", result.Updated)
 	fmt.Printf("  Skipped:  %d secrets\n", result.Skipped)
-	
+
 	if len(result.Errors) > 0 {
 		fmt.Printf("  Errors:   %d\n", len(result.Errors))
 		for _, errMsg := range result.Errors {

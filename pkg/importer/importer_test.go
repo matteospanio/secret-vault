@@ -187,7 +187,7 @@ func TestImportModeOverwrite(t *testing.T) {
 
 func TestImportModeMerge(t *testing.T) {
 	v := vault.NewVault()
-	
+
 	// Add an old secret
 	oldTime := time.Now().Add(-24 * time.Hour)
 	oldSecret := vault.Secret{
@@ -237,7 +237,7 @@ func TestImportModeMerge(t *testing.T) {
 
 func TestImportModeMergeKeepsNewer(t *testing.T) {
 	v := vault.NewVault()
-	
+
 	// Add a recent secret
 	newTime := time.Now()
 	newSecret := vault.Secret{
@@ -347,7 +347,7 @@ func TestImportInvalidJSON(t *testing.T) {
 
 func TestImportNilVault(t *testing.T) {
 	data := []byte(`{"version":"1.0","exported_at":"2024-01-01T00:00:00Z","secrets":[]}`)
-	
+
 	opts := ImportOptions{
 		Mode:   ModeOverwrite,
 		Format: exporter.FormatJSON,

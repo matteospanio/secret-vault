@@ -19,9 +19,9 @@ const (
 
 // ExportOptions contains configuration for export operations
 type ExportOptions struct {
-	Format          ExportFormat
-	IncludeValues   bool // Include secret values in export
-	PrettyPrint     bool // Format JSON/YAML with indentation
+	Format        ExportFormat
+	IncludeValues bool // Include secret values in export
+	PrettyPrint   bool // Format JSON/YAML with indentation
 }
 
 // ExportedSecret represents a secret in the export format
@@ -59,12 +59,12 @@ func Export(v *vault.Vault, opts ExportOptions) ([]byte, error) {
 			CreatedAt:   secret.CreatedAt,
 			UpdatedAt:   secret.UpdatedAt,
 		}
-		
+
 		// Include values only if requested
 		if opts.IncludeValues {
 			es.Value = secret.Value
 		}
-		
+
 		exportedSecrets = append(exportedSecrets, es)
 	}
 

@@ -234,7 +234,7 @@ func TestExportPreservesTimestamps(t *testing.T) {
 	}
 
 	exportedSecret := exported.Secrets[0]
-	
+
 	// Allow small time difference due to marshaling
 	if exportedSecret.CreatedAt.Sub(createdAt).Abs() > time.Second {
 		t.Errorf("CreatedAt not preserved correctly")
