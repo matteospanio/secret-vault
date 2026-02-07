@@ -1,4 +1,4 @@
-module github.com/matteospanio/secret-vault-cli
+module github.com/matteospanio/secret-vault
 
 go 1.24.7
 

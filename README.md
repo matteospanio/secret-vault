@@ -27,8 +27,8 @@ A secure command-line application for storing and managing API tokens, secrets, 
 Requires Go 1.21 or higher.
 
 ```bash
-git clone https://github.com/matteospanio/secret-vault-cli.git
-cd secret-vault-cli
+git clone https://github.com/matteospanio/secret-vault.git
+cd secret-vault
 go build -o secretvault ./cmd/secretvault
 sudo mv secretvault /usr/local/bin/  # Optional: install system-wide
 ```
@@ -484,7 +484,7 @@ secretvault list  # Access the same vault
 ### Project Structure
 
 ```
-secret-vault-cli/
+secret-vault/
 ├── cmd/
 │   └── secretvault/      # Main CLI application
 │       └── main.go
@@ -614,4 +614,4 @@ See [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/matteospanio/secret-vault-cli).
+For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/matteospanio/secret-vault).

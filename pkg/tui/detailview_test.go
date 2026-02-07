@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/matteospanio/secret-vault/pkg/vault"
 )
 
 // Helper to create a test secret

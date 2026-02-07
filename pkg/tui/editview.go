@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/matteospanio/secret-vault/pkg/vault"
 )
 
 const (

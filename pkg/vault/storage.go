@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/matteospanio/secret-vault-cli/pkg/crypto"
+	"github.com/matteospanio/secret-vault/pkg/crypto"
 )
 
 // LoadVault loads and decrypts a vault from a file

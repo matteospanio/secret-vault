@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/matteospanio/secret-vault/pkg/vault"
 )
 
 // TestImports verifies that all TUI dependencies are correctly installed and importable.

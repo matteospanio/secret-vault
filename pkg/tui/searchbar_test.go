@@ -5,7 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/matteospanio/secret-vault/pkg/vault"
 )
 
 func TestNewSearchBar(t *testing.T) {

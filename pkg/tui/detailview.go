@@ -6,8 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/matteospanio/secret-vault-cli/pkg/clipboard"
-	"github.com/matteospanio/secret-vault-cli/pkg/vault"
+	"github.com/matteospanio/secret-vault/pkg/clipboard"
+	"github.com/matteospanio/secret-vault/pkg/vault"
 )
 
 // DetailView displays secret details with reveal/copy functionality

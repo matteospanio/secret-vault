@@ -26,12 +26,12 @@ Thank you for your interest in contributing to Secret Vault CLI! This document p
 1. Fork the repository on GitHub
 2. Clone your fork:
    ```bash
-   git clone https://github.com/matteospanio/secret-vault-cli.git
-   cd secret-vault-cli
+   git clone https://github.com/matteospanio/secret-vault.git
+   cd secret-vault
    ```
 3. Add upstream remote:
    ```bash
-   git remote add upstream https://github.com/matteospanio/secret-vault-cli.git
+   git remote add upstream https://github.com/matteospanio/secret-vault.git
    ```
 
 ## Development Setup
@@ -82,7 +82,7 @@ go run ./cmd/secretvault tui
 ## Project Structure
 
 ```
-secret-vault-cli/
+secret-vault/
 ├── cmd/
 │   └── secretvault/          # Main CLI application entry point
 │       └── main.go

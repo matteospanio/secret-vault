@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/matteospanio/secret-vault-cli/pkg/vault"
+import "github.com/matteospanio/secret-vault/pkg/vault"
 
 // Message types for Bubble Tea
 
